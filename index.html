@@ -835,9 +835,14 @@ function lookupManual() {
 let deferredPrompt;
 const installBtn = document.getElementById('installBtn');
 
+// Debug: log whether beforeinstallprompt fires
+console.log('[PWA] beforeinstallprompt listener registered');
+
 window.addEventListener('beforeinstallprompt', (e) => {
+  console.log('[PWA] beforeinstallprompt FIRED');
   e.preventDefault();
   deferredPrompt = e;
+  installBtn.classList.remove('hidden');
 });
 
 installBtn.addEventListener('click', async () => {
