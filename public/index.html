@@ -842,6 +842,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
 
 installBtn.addEventListener('click', async () => {
   if (deferredPrompt) {
+    // Android Chrome — fire the native install prompt
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === 'accepted') {
@@ -849,8 +850,14 @@ installBtn.addEventListener('click', async () => {
     }
     deferredPrompt = null;
   } else {
-    // iOS Safari doesn't fire beforeinstallprompt — show instructions
-    alert('To install:\n\niPhone: Tap the Share button (⬆️) at the bottom, then "Add to Home Screen".\n\nAndroid: Tap the browser menu (⋮) and select "Install app" or "Add to Home screen".');
+    // Detect platform
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (isIOS) {
+      alert('To install on iPhone:\n\n1. Tap the Share button (⬆️) at the bottom of Safari\n2. Select "Add to Home Screen"');
+    } else {
+      // Android — beforeinstallprompt hasn't fired yet (PWA may not meet criteria yet)
+      alert('To install on Android:\n\nTap the browser menu (⋮) in Chrome and select "Install app" or "Add to Home screen".');
+    }
   }
 });
 
