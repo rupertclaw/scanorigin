@@ -347,33 +347,6 @@ async function lookupProduct(barcode: string) {
   if (ddg.status === 'fulfilled' && ddg.value) results.push(ddg.value);
   if (cl.status === 'fulfilled' && cl.value) results.push(cl.value);
   
-  // If we have a product name, search for manufacturing origin AND brand origin in parallel
-  // Use Promise.race with timeout so slow searches don't block the response
-  const offResult = off.status === 'fulfilled' ? off.value : null;
-  if (offResult && offResult.name) {
-    const searchTimeout = new Promise<null>(resolve => setTimeout(() => resolve(null), 8000));
-    
-    const [originSearch, brandSearch] = await Promise.all([
-      offResult.manufacturing 
-        ? Promise.resolve(null) 
-        : Promise.race([searchManufacturingOrigin(offResult.name, offResult.brand), searchTimeout]),
-      offResult.brand 
-        ? Promise.race([searchBrandOrigin(offResult.brand), searchTimeout]) 
-        : Promise.resolve(null),
-    ]);
-    
-    if (originSearch) {
-      (offResult as any).manufacturing = originSearch.origin;
-      (offResult as any).originSourceUrl = originSearch.sourceUrl;
-      (offResult as any).originFromSearch = true;
-    }
-    if (brandSearch) {
-      (offResult as any).brandOrigin = brandSearch.origin;
-      (offResult as any).brandCompany = brandSearch.company;
-      (offResult as any).brandOriginFromSearch = true;
-    }
-  }
-  
   return results;
 }
 
