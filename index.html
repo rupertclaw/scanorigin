@@ -301,13 +301,12 @@ function gs1Lookup(barcode) {
 
 // ── Confidence rating ─────────────────────────────────────────
 function getConfidence(gs1Country, productData) {
-  // If Open Food Facts has manufacturing data, that's more reliable
-  if (productData && productData.manufacturing_places && productData.manufacturing_places.trim()) {
+  // If we have product data with manufacturing info, that's the gold standard
+  if (productData && productData.manufacturing && productData.manufacturing.trim()) {
     return { level: 'high', label: 'High — from product label data' };
   }
-  // GS1 prefix tells us country of registration, not manufacturing
-  // Food products from Open Food Facts often have better data
-  if (productData && productData.countries_tags && productData.countries_tags.length > 0) {
+  // If we have a product name match from any source, medium confidence on origin
+  if (productData && productData.name && productData.name.trim()) {
     return { level: 'medium', label: 'Medium — barcode registration country' };
   }
   return { level: 'low', label: 'Low — barcode registration only' };
@@ -317,6 +316,19 @@ function getConfidence(gs1Country, productData) {
 async function lookupProduct(barcode) {
   const results = [];
 
+  // Call our API backend (Cloudflare Worker) which hits multiple sources server-side
+  const API_BASE = 'https://scanorigin.thaneclaw.workers.dev';
+  try {
+    const apiResp = await fetch(`${API_BASE}/api/lookup?barcode=${encodeURIComponent(barcode)}`);
+    if (apiResp.ok) {
+      const apiData = await apiResp.json();
+      if (apiData.products && apiData.products.length > 0) {
+        return apiData.products;
+      }
+    }
+  } catch (e) { console.log('API lookup error:', e); }
+
+  // Fallback: direct browser calls if Worker API fails
   // 1. Open Food Facts (free, food products)
   try {
     const offResp = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`);
@@ -389,7 +401,9 @@ function renderResult(barcode, productData) {
   // Merge product info from available sources
   const off = productData.find(p => p.source === 'Open Food Facts');
   const upc = productData.find(p => p.source === 'UPCitemdb');
-  const primary = off || upc || {};
+  const ddg = productData.find(p => p.source === 'DuckDuckGo');
+  const cl = productData.find(p => p.source === 'CodeLook');
+  const primary = off || upc || cl || ddg || {};
   const hasData = productData.length > 0;
 
   let html = '<div class="result-card">';
@@ -414,15 +428,30 @@ function renderResult(barcode, productData) {
   // Barcode
   html += `<div class="info-row"><div class="info-label">Barcode</div><div class="info-value mono">${escapeHtml(barcode)}</div></div>`;
 
-  // Country of origin (GS1)
-  html += `<div class="info-row"><div class="info-label">Origin</div><div>`;
+  // Country of origin (GS1) — be honest: this is barcode registration, not manufacturing
+  html += `<div class="info-row"><div class="info-label">Barcode Origin</div><div>`;
   html += `<span class="country-flag">${gs1.flag}</span><span class="country-name">${escapeHtml(gs1.country)}</span>`;
   html += `<div class="origin-confidence confidence-${confidence.level}">${confidence.label}</div>`;
   html += `</div></div>`;
 
+  // Brand/parent company headquarters (from web search)
+  if (off && off.brandOrigin) {
+    const companyLabel = off.brandCompany && off.brandCompany !== off.brand 
+      ? `${escapeHtml(off.brand)} → ${escapeHtml(off.brandCompany)}` 
+      : escapeHtml(off.brand);
+    html += `<div class="info-row"><div class="info-label">Brand From</div><div>`;
+    html += `<div class="info-value">${escapeHtml(off.brandOrigin)}</div>`;
+    html += `<span style="color:var(--muted);font-size:11px">${companyLabel} (web search)</span>`;
+    html += `</div></div>`;
+  }
+
   // Manufacturing places (from OFF if available)
   if (off && off.manufacturing) {
-    html += `<div class="info-row"><div class="info-label">Made In</div><div class="info-value">${escapeHtml(off.manufacturing)}</div></div>`;
+    const originLabel = off.originFromSearch ? 'Likely Made In' : 'Made In';
+    const originNote = off.originFromSearch ? ' (from web search)' : '';
+    html += `<div class="info-row"><div class="info-label">${escapeHtml(originLabel)}</div><div>`;
+    html += `<div class="info-value">${escapeHtml(off.manufacturing)}${originNote ? `<span style="color:var(--muted);font-size:11px">${escapeHtml(originNote)}</span>` : ''}</div>`;
+    html += `</div></div>`;
   }
 
   // Countries where sold (from OFF)
@@ -435,6 +464,11 @@ function renderResult(barcode, productData) {
     html += `<div class="info-row"><div class="info-label">Category</div><div class="info-value">${escapeHtml(primary.category)}</div></div>`;
   } else if (off && off.categories) {
     html += `<div class="info-row"><div class="info-label">Category</div><div class="info-value">${escapeHtml(off.categories)}</div></div>`;
+  }
+
+  // Description (from UPCitemdb, CodeLook, or DuckDuckGo)
+  if (primary.description && !off) {
+    html += `<div class="info-row"><div class="info-label">Details</div><div class="info-value" style="font-size:14px">${escapeHtml(primary.description)}</div></div>`;
   }
 
   // NutriScore (food only)
@@ -470,10 +504,16 @@ function renderResult(barcode, productData) {
 
   // Source links
   html += `<div class="info-row"><div class="info-label">Sources</div><div class="info-value" style="font-size:13px">`;
-  if (off) html += `<a href="${escapeHtml(off.sourceUrl)}" target="_blank" style="color:var(--accent)">Open Food Facts</a>`;
-  if (off && upc) html += ` · `;
-  if (upc) html += `<a href="${escapeHtml(upc.sourceUrl)}" target="_blank" style="color:var(--accent)">UPCitemdb</a>`;
-  if (!hasData) html += `<span style="color:var(--muted)">GS1 prefix only</span>`;
+  const sourceLinks = [];
+  if (off) sourceLinks.push(`<a href="${escapeHtml(off.sourceUrl)}" target="_blank" style="color:var(--accent)">Open Food Facts</a>`);
+  if (upc) sourceLinks.push(`<a href="${escapeHtml(upc.sourceUrl)}" target="_blank" style="color:var(--accent)">UPCitemdb</a>`);
+  if (cl) sourceLinks.push(`<a href="${escapeHtml(cl.sourceUrl)}" target="_blank" style="color:var(--accent)">CodeLook</a>`);
+  if (ddg) sourceLinks.push(`<a href="${escapeHtml(ddg.sourceUrl)}" target="_blank" style="color:var(--accent)">DuckDuckGo</a>`);
+  if (sourceLinks.length > 0) {
+    html += sourceLinks.join(' · ');
+  } else {
+    html += `<span style="color:var(--muted)">GS1 prefix only</span>`;
+  }
   html += `</div></div>`;
 
   html += '</div>';
@@ -547,33 +587,74 @@ async function startScanning() {
 async function startNativeScanner() {
   const video = document.getElementById('video');
   const stream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: currentCamera }
+    video: { facingMode: currentCamera, width: { ideal: 1280 }, height: { ideal: 720 } }
   });
   video.srcObject = stream;
   await video.play();
   scanning = true;
 
   const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39'] });
-  const canvas = document.getElementById('canvas');
-  const ctx = canvas.getContext('2d');
 
-  let lastCode = null;
-  let lastCodeTime = 0;
+  // Require N consecutive identical reads to confirm a real barcode
+  let confirmCount = 0;
+  let confirmCode = null;
+  const REQUIRED_CONFIRMATIONS = 3;
+  const WARMUP_MS = 800; // ignore reads for first 800ms while camera focuses
+  const scanStartTime = Date.now();
+
+  // Visual feedback
+  const scanHint = document.getElementById('scanHint');
+  const scanBox = document.querySelector('.scan-box');
 
   async function detect() {
     if (!scanning) return;
+
+    // Skip reads during warmup
+    if (Date.now() - scanStartTime < WARMUP_MS) {
+      scanHint.textContent = 'Focusing camera...';
+      requestAnimationFrame(detect);
+      return;
+    }
+
+    scanHint.textContent = 'Point camera at a barcode';
+
     try {
       const codes = await detector.detect(video);
       if (codes.length > 0) {
         const code = codes[0].rawValue;
-        const now = Date.now();
-        // Debounce: same code within 3s = ignore
-        if (code !== lastCode || now - lastCodeTime > 3000) {
-          lastCode = code;
-          lastCodeTime = now;
+
+        // Validate barcode length (EAN-13=13, UPC-A=12, EAN-8=8)
+        if (code.length < 8 || code.length > 14 || !/^\d+$/.test(code)) {
+          confirmCount = 0;
+          confirmCode = null;
+          requestAnimationFrame(detect);
+          return;
+        }
+
+        if (code === confirmCode) {
+          confirmCount++;
+          scanHint.textContent = `Locked on: ${code} (${confirmCount}/${REQUIRED_CONFIRMATIONS})`;
+          scanBox.style.borderColor = 'var(--warn)';
+        } else {
+          confirmCode = code;
+          confirmCount = 1;
+          scanHint.textContent = `Detecting: ${code} (1/${REQUIRED_CONFIRMATIONS})`;
+          scanBox.style.borderColor = 'var(--warn)';
+        }
+
+        if (confirmCount >= REQUIRED_CONFIRMATIONS) {
+          scanHint.textContent = '✓ Scanned!';
+          scanBox.style.borderColor = 'var(--accent)';
           stopScanning();
           processBarcode(code);
           return;
+        }
+      } else {
+        // No code found this frame, reset confirmation
+        if (confirmCount > 0) {
+          confirmCount = 0;
+          confirmCode = null;
+          scanBox.style.borderColor = 'var(--accent)';
         }
       }
     } catch (e) { /* frame not ready */ }
@@ -607,13 +688,31 @@ async function startHtml5Scanner() {
     ],
   };
 
+  // Require multiple consecutive reads to prevent false positives
+  let lastRead = null;
+  let readCount = 0;
+  const REQUIRED = 3;
+
   await html5Qr.start(
     { facingMode: currentCamera },
     config,
     (decodedText) => {
-      // Success callback
-      stopScanning();
-      processBarcode(decodedText);
+      // Validate: digits only, reasonable length
+      if (!/^\d{8,14}$/.test(decodedText)) {
+        lastRead = null;
+        readCount = 0;
+        return;
+      }
+      if (decodedText === lastRead) {
+        readCount++;
+      } else {
+        lastRead = decodedText;
+        readCount = 1;
+      }
+      if (readCount >= REQUIRED) {
+        stopScanning();
+        processBarcode(decodedText);
+      }
     },
     (err) => { /* per-frame failure, ignore */ }
   );
