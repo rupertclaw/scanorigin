@@ -465,6 +465,7 @@ app.get('/api/lookup', async (req, res) => {
 app.get('/api/enrich', async (req, res) => {
   const name = req.query.name || '';
   const brand = req.query.brand || '';
+  const debug = req.query.debug === '1';
   if (!name && !brand) {
     return res.status(400).json({ error: 'Missing name or brand' });
   }
@@ -483,6 +484,11 @@ app.get('/api/enrich', async (req, res) => {
       result.brandOrigin = brandSearch.origin;
       result.brandCompany = brandSearch.company;
       result.brandFromSearch = true;
+    }
+    if (debug) {
+      const brandQuery = `"${brand}" "owned by" OR "subsidiary of" OR "parent company" OR "headquartered"`;
+      const snippets = await fetchSearchSnippets(brandQuery);
+      result._debug = { snippetCount: snippets.length, snippets: snippets.slice(0, 5) };
     }
     res.json(result);
   } catch (err) {
