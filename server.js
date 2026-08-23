@@ -128,69 +128,6 @@ const MONTHS = ['January','February','March','April','May','June','July','August
 const SEASONS = ['Spring','Summer','Autumn','Winter','Fall'];
 const FALSE_POSITIVES = ['The','This','These','Many','Some','Such','Over','Most','Recent','Early','Late','Which','That','Those'];
 
-function isValidCountry(c) {
-  return c && c.length > 2 && c.length < 30 &&
-    !MONTHS.includes(c) && !SEASONS.includes(c) &&
-    !FALSE_POSITIVES.includes(c) && !MAJOR_CITIES.includes(c);
-}
-
-function fetchSearchSnippets(query) {
-  return new Promise((resolve) => {
-    let data = '';
-    const url = `https://www.bing.com/search?q=${encodeURIComponent(query)}&setlang=en&cc=us`;
-    https.get(url, { headers: { 'User-Agent': SEARCH_UA, 'Accept': 'text/html' } }, (res) => {
-      res.on('data', (chunk) => data += chunk);
-      res.on('end', () => {
-        const snippets = [];
-        // Bing uses <p class="b_lineclamp2"> or <p class="b_lineclamp4"> for snippets
-        const regex = /<p class="b_lineclamp[24]">([^<]+)<\/p>/g;
-        let match;
-        while ((match = regex.exec(data)) !== null) {
-          const text = match[1]
-            .replace(/&#x27;/g, "'")
-            .replace(/&amp;/g, '&')
-            .replace(/&quot;/g, '"')
-            .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n)))
-            .trim();
-          if (text.length > 15) snippets.push(text);
-        }
-        resolve(snippets);
-      });
-      res.on('error', () => resolve([]));
-    }).on('error', () => resolve([]));
-  });
-}
-
-async function searchManufacturingOrigin(productName, brand) {
-  // Use quotes around brand to get better results
-  const query = `"${brand}" "made in" OR "manufactured in" OR "produced in" country`;
-  try {
-    const snippets = await fetchSearchSnippets(query);
-    const patterns = [
-      /made\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
-      /manufactured\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
-      /produced\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
-      /originated\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
-      /originally\s+(?:developed|created|made|produced)\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
-      /from\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+by/i,
-      /factory\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
-      /plant\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
-    ];
-
-    for (const snippet of snippets) {
-      for (const pattern of patterns) {
-        const m = snippet.match(pattern);
-        if (m && m[1] && isValidCountry(m[1].trim())) {
-          return { origin: m[1].trim() };
-        }
-      }
-    }
-  } catch (e) { /* ignore */ }
-  return null;
-}
-
-// ── Brand/parent company origin search ────────────────────────
-
 const NATIONALITY_MAP = {
   'American': 'United States', 'US': 'United States', 'USA': 'United States',
   'British': 'United Kingdom', 'UK': 'United Kingdom',
@@ -205,56 +142,94 @@ const NATIONALITY_MAP = {
   'Greek': 'Greece', 'Russian': 'Russia',
 };
 
+function isValidCountry(c) {
+  return c && c.length > 2 && c.length < 30 &&
+    !MONTHS.includes(c) && !SEASONS.includes(c) &&
+    !FALSE_POSITIVES.includes(c) && !MAJOR_CITIES.includes(c);
+}
+
+// ── Wikipedia API search (works from any IP, no scraping) ────
+
+async function fetchWikipediaExtract(brand) {
+  return new Promise((resolve) => {
+    const title = encodeURIComponent(brand);
+    const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${title}&prop=extracts&exintro=1&format=json&explaintext=1&redirects=1`;
+    https.get(url, { headers: { 'User-Agent': 'ScanOrigin/1.0 (contact@scanorigin.app)' } }, (res) => {
+      let data = '';
+      res.on('data', (chunk) => data += chunk);
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          const pages = parsed.query?.pages || {};
+          for (const k of Object.keys(pages)) {
+            if (k !== '-1' && pages[k].extract) {
+              resolve(pages[k].extract);
+              return;
+            }
+          }
+        } catch (e) { /* ignore */ }
+        resolve(null);
+      });
+      res.on('error', () => resolve(null));
+    }).on('error', () => resolve(null));
+  });
+}
+
 async function searchBrandOrigin(brand) {
   if (!brand || brand.length < 2) return null;
-  const query = `"${brand}" "owned by" OR "subsidiary of" OR "parent company" OR "headquartered"`;
-  try {
-    const snippets = await fetchSearchSnippets(query);
 
-    let foundCompany = '';
-
-    // First pass: look for parent company / owned by / created by / produced by / distributed by
-    for (const snippet of snippets) {
-      const parentMatch = snippet.match(/(?:subsidiary\s+of|owned\s+by|parent\s+company\s+(?:is\s+)?|created\s+by|produced\s+(?:and\s+)?distributed\s+by|distributed\s+by|produced\s+by)\s+([A-Z][A-Za-z]+(?:[-\s][A-Z][A-Za-z]+)*)/);
-      if (parentMatch && parentMatch[1]) {
-        const co = parentMatch[1].trim();
-        if (co.length > 2 && !['The', 'This', 'These', 'Many', 'Some'].includes(co)) {
-          foundCompany = co;
-          break;
+  // Try Wikipedia first (most reliable, works from any IP)
+  const wikiExtract = await fetchWikipediaExtract(brand);
+  if (wikiExtract) {
+    // Look for nationality patterns in the Wikipedia intro
+    const natMatch = wikiExtract.match(/\b(American|British|German|French|Italian|Spanish|Dutch|Belgian|Swiss|Swedish|Norwegian|Danish|Finnish|Polish|Irish|Portuguese|Austrian|Canadian|Australian|Japanese|Chinese|Korean|Indian|Brazilian|Mexican|Turkish|Greek|Russian)\b(?:[-\s]?(?:family[-\s]?)?(?:owned|multinational|brand|company|corporation|manufacturer|producer|food|mayo|sauc|drinks?|products?|retail))/i);
+    if (natMatch && natMatch[1]) {
+      const natKey = natMatch[1].charAt(0).toUpperCase() + natMatch[1].slice(1).toLowerCase();
+      const country = NATIONALITY_MAP[natKey];
+      if (country) {
+        // Try to extract parent company from the same extract
+        let foundCompany = '';
+        const parentMatch = wikiExtract.match(/(?:subsidiary\s+of|owned\s+by|parent\s+company\s+(?:is\s+)?|created\s+by|produced\s+(?:and\s+)?distributed\s+by|distributed\s+by|produced\s+by|brand\s+of)\s+([A-Z][A-Za-z]+(?:[-\s][A-Z][A-Za-z]+)*)/);
+        if (parentMatch && parentMatch[1] && parentMatch[1].trim().length > 2 && !['The','This','These'].includes(parentMatch[1].trim())) {
+          foundCompany = parentMatch[1].trim();
         }
+        return { origin: country, company: foundCompany || brand };
       }
     }
 
-    // Second pass: look for nationality patterns (most reliable)
-    for (const snippet of snippets) {
-      const natMatch = snippet.match(/\b(American|British|German|French|Italian|Spanish|Dutch|Belgian|Swiss|Swedish|Norwegian|Danish|Finnish|Polish|Irish|Portuguese|Austrian|Canadian|Australian|Japanese|Chinese|Korean|Indian|Brazilian|Mexican|Turkish|Greek|Russian)\b(?:[-\s]?(?:family[-\s]?)?(?:owned|multinational|brand|company|corporation|manufacturer|food|mayo|sauc|drinks?|products?))/i);
-      if (natMatch && natMatch[1]) {
-        const natKey = natMatch[1].charAt(0).toUpperCase() + natMatch[1].slice(1).toLowerCase();
-        const country = NATIONALITY_MAP[natKey];
-        if (country) {
-          return { origin: country, company: foundCompany || brand };
-        }
-      }
+    // Look for "based in [Country]" or "headquartered in [Country]"
+    const basedMatch = wikiExtract.match(/(?:based|headquartered|founded)\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/);
+    if (basedMatch && basedMatch[1] && isValidCountry(basedMatch[1].trim())) {
+      let foundCompany = '';
+      const parentMatch = wikiExtract.match(/(?:subsidiary\s+of|owned\s+by|parent\s+company\s+(?:is\s+)?|brand\s+of)\s+([A-Z][A-Za-z]+(?:[-\s][A-Z][A-Za-z]+)*)/);
+      if (parentMatch && parentMatch[1]) foundCompany = parentMatch[1].trim();
+      return { origin: basedMatch[1].trim(), company: foundCompany || brand };
     }
+  }
 
-    // Third pass: headquartered in City, Country
-    for (const snippet of snippets) {
-      const hq = snippet.match(/(?:headquartered|based)\s+in\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*,\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/);
-      if (hq && hq[1] && isValidCountry(hq[1].trim())) {
-        return { origin: hq[1].trim(), company: foundCompany || brand };
-      }
-    }
+  return null;
+}
 
-    // Fourth pass: simple headquartered/based in Country
-    for (const snippet of snippets) {
-      for (const pattern of [/headquartered\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/, /based\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/, /founded\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/]) {
-        const m = snippet.match(pattern);
-        if (m && m[1] && isValidCountry(m[1].trim())) {
-          return { origin: m[1].trim(), company: foundCompany || brand };
-        }
+async function searchManufacturingOrigin(productName, brand) {
+  // Wikipedia doesn't usually have per-product manufacturing location,
+  // but the brand article sometimes mentions where products are made
+  const wikiExtract = await fetchWikipediaExtract(brand);
+  if (wikiExtract) {
+    const patterns = [
+      /made\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
+      /manufactured\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
+      /produced\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
+      /originated\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
+      /originally\s+(?:developed|created|made|produced)\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
+    ];
+
+    for (const pattern of patterns) {
+      const m = wikiExtract.match(pattern);
+      if (m && m[1] && isValidCountry(m[1].trim())) {
+        return { origin: m[1].trim() };
       }
     }
-  } catch (e) { /* ignore */ }
+  }
   return null;
 }
 
