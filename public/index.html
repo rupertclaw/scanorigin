@@ -19,16 +19,24 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:-a
 #app { max-width:480px; margin:0 auto; min-height:100dvh; display:flex; flex-direction:column; }
 
 /* Header */
-.header { padding:24px 20px 20px; display:flex; flex-direction:column; align-items:center; gap:10px; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--bg); z-index:10; }
-.header-top { display:flex; align-items:center; justify-content:space-between; width:100%; }
-.header-logo { width:144px; height:144px; border-radius:28px; flex-shrink:0; }
-.header-text { text-align:center; }
-.header h1 { font-size:28px; font-weight:800; letter-spacing:-0.03em; }
+.header { padding:12px 16px; display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--bg); z-index:10; }
+.header-logo { width:44px; height:44px; border-radius:12px; flex-shrink:0; }
+.header-text { flex:1; min-width:0; }
+.header h1 { font-size:18px; font-weight:700; letter-spacing:-0.02em; }
 .header h1 span { color:var(--accent); }
-.header .subtitle { font-size:13px; color:var(--muted); margin-top:4px; }
-.install-btn { display:flex; align-items:center; gap:6px; padding:10px 20px; background:var(--accent); color:#000; border:none; border-radius:12px; font-size:14px; font-weight:700; cursor:pointer; flex-shrink:0; transition:opacity .15s, transform .1s; }
+.header .subtitle { font-size:10px; color:var(--muted); margin-top:1px; }
+.install-btn { display:flex; align-items:center; gap:5px; padding:8px 14px; background:var(--accent); color:#000; border:none; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; flex-shrink:0; transition:opacity .15s, transform .1s; }
 .install-btn:active { transform:scale(0.95); }
 .install-btn.hidden { display:none; }
+
+/* Controls */
+.controls { padding:12px 16px 8px; display:flex; gap:10px; }
+.btn { flex:1; padding:14px 16px; border:none; border-radius:12px; font-size:15px; font-weight:600; cursor:pointer; transition:opacity .15s, transform .1s; display:flex; align-items:center; justify-content:center; gap:8px; }
+.btn:active { transform:scale(0.97); }
+.btn-primary { background:var(--accent); color:#000; }
+.btn-primary:disabled { opacity:0.4; cursor:default; }
+.btn-secondary { background:var(--card); color:var(--text); border:1px solid var(--border); }
+.btn-stop { background:var(--danger); color:#fff; display:none; }
 
 /* Scanner area */
 .scanner-wrap { position:relative; width:100%; aspect-ratio:3/4; max-height:420px; background:#000; overflow:hidden; margin:0; }
@@ -43,17 +51,8 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:-a
 @keyframes scanLine { 0%,100%{ transform:translateY(-80px); opacity:0.5; } 50%{ transform:translateY(80px); opacity:1; } }
 .scan-hint { position:absolute; bottom:16px; left:0; right:0; text-align:center; color:rgba(255,255,255,0.7); font-size:13px; pointer-events:none; }
 
-/* Controls */
-.controls { padding:12px 20px; display:flex; gap:10px; }
-.btn { flex:1; padding:14px 16px; border:none; border-radius:12px; font-size:15px; font-weight:600; cursor:pointer; transition:opacity .15s, transform .1s; display:flex; align-items:center; justify-content:center; gap:8px; }
-.btn:active { transform:scale(0.97); }
-.btn-primary { background:var(--accent); color:#000; }
-.btn-primary:disabled { opacity:0.4; cursor:default; }
-.btn-secondary { background:var(--card); color:var(--text); border:1px solid var(--border); }
-.btn-stop { background:var(--danger); color:#fff; display:none; }
-
 /* Manual input */
-.manual-input { padding:0 20px 12px; display:flex; gap:10px; }
+.manual-input { padding:0 16px 12px; display:flex; gap:10px; }
 .manual-input input { flex:1; padding:12px 14px; background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:15px; font-family:monospace; }
 .manual-input input:focus { outline:none; border-color:var(--accent); }
 .manual-input button { padding:12px 16px; background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--accent); font-weight:600; cursor:pointer; white-space:nowrap; }
@@ -108,14 +107,18 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:-a
 <body>
 <div id="app">
   <div class="header">
-    <div class="header-top">
-      <button class="install-btn" id="installBtn">📲 Install App</button>
-    </div>
     <img src="logo.png" alt="ScanOrigin" class="header-logo">
     <div class="header-text">
       <h1>Scan<span>Origin</span></h1>
       <div class="subtitle">Barcode scanner · price · country of origin</div>
     </div>
+    <button class="install-btn" id="installBtn">📲 Install</button>
+  </div>
+
+  <div class="controls">
+    <button class="btn btn-primary" id="startBtn" onclick="startScanning()">📷 Start Scanner</button>
+    <button class="btn btn-stop" id="stopBtn" onclick="stopScanning()">⏹ Stop</button>
+    <button class="btn btn-secondary" id="switchBtn" onclick="switchCamera()" style="display:none;">🔄 Flip</button>
   </div>
 
   <div class="scanner-wrap" id="scannerWrap">
@@ -125,12 +128,6 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:-a
       <div class="scan-box"><div class="scan-line"></div></div>
       <div class="scan-hint" id="scanHint">Point camera at a barcode</div>
     </div>
-  </div>
-
-  <div class="controls">
-    <button class="btn btn-primary" id="startBtn" onclick="startScanning()">📷 Start Scanner</button>
-    <button class="btn btn-stop" id="stopBtn" onclick="stopScanning()">⏹ Stop</button>
-    <button class="btn btn-secondary" id="switchBtn" onclick="switchCamera()" style="display:none;">🔄 Flip</button>
   </div>
 
   <div class="manual-input">
