@@ -1,0 +1,590 @@
+interface Env {
+  ASSETS: Fetcher;
+}
+
+// ── Product lookup from multiple sources ─────────────────────
+
+interface ProductResult {
+  source: string;
+  name: string;
+  brand: string;
+  image: string;
+  category?: string;
+  description?: string;
+  quantity?: string;
+  countries?: string;
+  manufacturing?: string;
+  ingredients?: string;
+  categories?: string;
+  nutriscore?: string;
+  offers?: Array<{ retailer: string; price: string; link: string }>;
+  sourceUrl: string;
+}
+
+async function lookupOpenFoodFacts(barcode: string): Promise<ProductResult | null> {
+  try {
+    const resp = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`, {
+      headers: { 'User-Agent': 'ScanOrigin/1.0' },
+    });
+    if (!resp.ok) return null;
+    const data: any = await resp.json();
+    if (data.status === 1 && data.product) {
+      const p = data.product;
+      return {
+        source: 'Open Food Facts',
+        name: p.product_name || p.generic_name || '',
+        brand: p.brands || '',
+        image: p.image_front_url || p.image_url || '',
+        quantity: p.quantity || '',
+        countries: p.countries || '',
+        manufacturing: p.manufacturing_places || '',
+        ingredients: p.ingredients_text || '',
+        categories: p.categories || '',
+        nutriscore: p.nutriscore_grade || '',
+        sourceUrl: p.link || `https://world.openfoodfacts.org/product/${barcode}`,
+      };
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+async function lookupUPCitemdb(barcode: string): Promise<ProductResult | null> {
+  try {
+    const resp = await fetch(`https://api.upcitemdb.com/prod/trial/${barcode}`, {
+      headers: { 'User-Agent': 'ScanOrigin/1.0' },
+    });
+    if (!resp.ok) return null;
+    const data: any = await resp.json();
+    if (data.code === 'OK' && data.items && data.items.length > 0) {
+      const item = data.items[0];
+      return {
+        source: 'UPCitemdb',
+        name: item.title || '',
+        brand: item.brand || '',
+        image: item.image || '',
+        category: item.category || '',
+        description: item.description || '',
+        offers: item.offers || [],
+        sourceUrl: item.link || '',
+      };
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+async function lookupDuckDuckGo(barcode: string): Promise<ProductResult | null> {
+  try {
+    // DuckDuckGo Instant Answer API — searches for the barcode number
+    const resp = await fetch(
+      `https://api.duckduckgo.com/?q=${barcode}+barcode+product&format=json&no_html=1`,
+      { headers: { 'User-Agent': 'ScanOrigin/1.0' } }
+    );
+    if (!resp.ok) return null;
+    const data: any = await resp.json();
+    
+    // Try AbstractText first
+    if (data.AbstractText && data.AbstractText.length > 10) {
+      return {
+        source: 'DuckDuckGo',
+        name: data.Heading || 'Product found via search',
+        brand: '',
+        image: data.Image || '',
+        description: data.AbstractText,
+        sourceUrl: data.AbstractURL || '',
+      };
+    }
+    
+    // Try RelatedTopics for product info
+    if (data.RelatedTopics && data.RelatedTopics.length > 0) {
+      for (const topic of data.RelatedTopics) {
+        if (topic.Text && topic.Text.length > 10) {
+          return {
+            source: 'DuckDuckGo',
+            name: topic.Text.substring(0, 100),
+            brand: '',
+            image: topic.Icon?.URL || '',
+            description: topic.Text,
+            sourceUrl: topic.FirstURL || '',
+          };
+        }
+      }
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+// Web search for manufacturing origin using product name + brand
+async function searchManufacturingOrigin(productName: string, brand: string): Promise<{ origin: string; sourceUrl: string } | null> {
+  const query = encodeURIComponent(`${brand} ${productName} where is it made origin country`);
+  try {
+    // Use DuckDuckGo HTML search and parse results
+    const resp = await fetch(
+      `https://html.duckduckgo.com/html/?q=${query}`,
+      { headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' } }
+    );
+    if (!resp.ok) return null;
+    const html = await resp.text();
+    
+    // Extract result snippets
+    const snippets: string[] = [];
+    const snippetRegex = /class="result__snippet"[^>]*>(.*?)<\/a>/gs;
+    let match;
+    while ((match = snippetRegex.exec(html)) !== null) {
+      const text = match[1].replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').trim();
+      if (text.length > 10) snippets.push(text);
+    }
+    
+    // Look for origin patterns in snippets
+    const majorCities = ['Atlanta','London','Berlin','Paris','Tokyo','New York','Chicago','Toronto','Sydney','Amsterdam','Madrid','Rome','Munich','Milan','Geneva','Zurich','Stockholm','Oslo','Copenhagen','Dublin','Vienna','Lisbon','Warsaw','Moscow','Seoul','Beijing','Mumbai','Sao Paulo','Mexico City','Istanbul','Athens','Brussels','Helsinki','Den Dolder','Amersfoort','Naples','Tiberias','Utrecht'];
+    const originPatterns = [
+      /made\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
+      /manufactured\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
+      /produced\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
+      /originated\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
+      /originally\s+(?:developed|created|made|produced)\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
+      /from\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+by/i,
+      /factory\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
+      /plant\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
+      /headquartered\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
+    ];
+    
+    for (const snippet of snippets) {
+      for (const pattern of originPatterns) {
+        const m = snippet.match(pattern);
+        if (m && m[1]) {
+          const country = m[1].trim();
+          // Filter out false positives
+          const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+          const seasons = ['Spring','Summer','Autumn','Winter','Fall'];
+          const falsePositives = ['The','This','These','Many','Some','Such','Over','Most','Recent','Early','Late'];
+          if (country.length > 2 && country.length < 30 && 
+              !months.includes(country) && !seasons.includes(country) && !falsePositives.includes(country) &&
+              !majorCities.includes(country)) {
+            return {
+              origin: country,
+              sourceUrl: `https://duckduckgo.com/?q=${query}`,
+            };
+          }
+        }
+      }
+    }
+    
+    // If no pattern match, return nothing (don't return random snippets as "origin")
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+// Search for brand/parent company headquarters country
+async function searchBrandOrigin(brand: string): Promise<{ origin: string; company: string; sourceUrl: string } | null> {
+  if (!brand || brand.length < 2) return null;
+  const query = encodeURIComponent(`${brand} company headquarters parent company country`);
+  try {
+    const resp = await fetch(
+      `https://html.duckduckgo.com/html/?q=${query}`,
+      { headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' } }
+    );
+    if (!resp.ok) return null;
+    const html = await resp.text();
+    
+    // Extract result snippets
+    const snippets: string[] = [];
+    const snippetRegex = /class="result__snippet"[^>]*>(.*?)<\/a>/gs;
+    let match;
+    while ((match = snippetRegex.exec(html)) !== null) {
+      const text = match[1].replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#x27;/g, "'").trim();
+      if (text.length > 10) snippets.push(text);
+    }
+    
+    // Map nationality adjectives to countries
+    const nationalityMap: Record<string, string> = {
+      'American': 'United States', 'US': 'United States', 'USA': 'United States',
+      'British': 'United Kingdom', 'UK': 'United Kingdom',
+      'German': 'Germany', 'French': 'France', 'Italian': 'Italy',
+      'Spanish': 'Spain', 'Dutch': 'Netherlands', 'Belgian': 'Belgium',
+      'Swiss': 'Switzerland', 'Swedish': 'Sweden', 'Norwegian': 'Norway',
+      'Danish': 'Denmark', 'Finnish': 'Finland', 'Polish': 'Poland',
+      'Irish': 'Ireland', 'Portuguese': 'Portugal', 'Austrian': 'Austria',
+      'Canadian': 'Canada', 'Australian': 'Australia', 'Japanese': 'Japan',
+      'Chinese': 'China', 'Korean': 'South Korea', 'Indian': 'India',
+      'Brazilian': 'Brazil', 'Mexican': 'Mexico', 'Turkish': 'Turkey',
+      'Greek': 'Greece', 'Russian': 'Russia', 'Belgian': 'Belgium',
+    };
+    
+    let foundCompany = '';
+    
+    // First pass: look for parent company / owned by (handle hyphens)
+    for (const snippet of snippets) {
+      const parentMatch = snippet.match(/(?:subsidiary\s+of|owned\s+by|parent\s+company\s+(?:is\s+)?)\s+([A-Z][A-Za-z]+(?:[-\s][A-Z][A-Za-z]+)*)/);
+      if (parentMatch && parentMatch[1]) {
+        const co = parentMatch[1].trim();
+        // Filter out common words
+        if (co.length > 2 && !['The', 'This', 'These', 'Many', 'Some'].includes(co)) {
+          foundCompany = co;
+          break;
+        }
+      }
+    }
+    
+    // Second pass: look for nationality patterns (most reliable)
+    for (const snippet of snippets) {
+      const natMatch = snippet.match(/\b(American|British|German|French|Italian|Spanish|Dutch|Belgian|Swiss|Swedish|Norwegian|Danish|Finnish|Polish|Irish|Portuguese|Austrian|Canadian|Australian|Japanese|Chinese|Korean|Indian|Brazilian|Mexican|Turkish|Greek|Russian)\b(?:[-\s]?(?:family[-\s]?)?(?:owned|multinational|brand|company|corporation|manufacturer))/);
+      if (natMatch && natMatch[1]) {
+        const country = nationalityMap[natMatch[1]] || natMatch[1];
+        return {
+          origin: country,
+          company: foundCompany || brand,
+          sourceUrl: `https://duckduckgo.com/?q=${query}`,
+        };
+      }
+    }
+    
+    // Third pass: headquartered in [City], [Country] — look for country after city
+    for (const snippet of snippets) {
+      // Pattern: "headquartered in City, Country" or "based in City, Country"
+      const hqMatch = snippet.match(/(?:headquartered|based)\s+in\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*,\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/);
+      if (hqMatch && hqMatch[1]) {
+        const country = hqMatch[1].trim();
+        const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        if (country.length > 2 && country.length < 30 && !months.includes(country)) {
+          return {
+            origin: country,
+            company: foundCompany || brand,
+            sourceUrl: `https://duckduckgo.com/?q=${query}`,
+          };
+        }
+      }
+    }
+    
+    // Fourth pass: simple headquartered/based in [Country] (skip if it's a city)
+    const majorCities = ['Atlanta','London','Berlin','Paris','Tokyo','New York','Chicago','Toronto','Sydney','Amsterdam','Madrid','Rome','Munich','Milan','Geneva','Zurich','Stockholm','Oslo','Copenhagen','Dublin','Vienna','Lisbon','Warsaw','Moscow','Seoul','Beijing','Mumbai','Sao Paulo','Mexico City','Istanbul','Athens','Brussels','Helsinki'];
+    for (const snippet of snippets) {
+      for (const pattern of [/headquartered\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/, /based\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/, /founded\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/]) {
+        const m = snippet.match(pattern);
+        if (m && m[1]) {
+          const country = m[1].trim();
+          const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+          const falsePositives = ['The','This','These','Many','Some','Such','Over','Most','Recent','Early','Late','Which','That','Those'];
+          if (country.length > 2 && country.length < 30 && 
+              !months.includes(country) && !falsePositives.includes(country) &&
+              !majorCities.includes(country)) {
+            return {
+              origin: country,
+              company: foundCompany || brand,
+              sourceUrl: `https://duckduckgo.com/?q=${query}`,
+            };
+          }
+        }
+      }
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+async function lookupGoogleShopping(barcode: string): Promise<ProductResult | null> {
+  // Use Google Shopping structured data via a search
+  try {
+    const resp = await fetch(
+      `https://www.google.com/search?q=${barcode}&tbm=shop&hl=en`,
+      { headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' } }
+    );
+    if (!resp.ok) return null;
+    const html = await resp.text();
+    
+    // Extract product data from structured data in the HTML
+    const nameMatch = html.match(/<span class="XcXBf"[^>]*>([^<]+)<\/span>/);
+    const priceMatch = html.match(/<span class="O8U6h"[^>]*>([^<]+)<\/span>/);
+    
+    if (nameMatch) {
+      return {
+        source: 'Google Shopping',
+        name: nameMatch[1],
+        brand: '',
+        image: '',
+        description: priceMatch ? `Price: ${priceMatch[1]}` : '',
+        sourceUrl: `https://www.google.com/search?q=${barcode}&tbm=shop`,
+      };
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+async function lookupCodeLook(barcode: string): Promise<ProductResult | null> {
+  // CodeLook.info — free UPC/EAN lookup
+  try {
+    const resp = await fetch(`https://codelook.info/lookup/${barcode}`, {
+      headers: { 'User-Agent': 'ScanOrigin/1.0', 'Accept': 'application/json' },
+    });
+    if (!resp.ok) return null;
+    const data: any = await resp.json();
+    if (data && data.name) {
+      return {
+        source: 'CodeLook',
+        name: data.name || '',
+        brand: data.brand || '',
+        image: data.image || '',
+        category: data.category || '',
+        description: data.description || '',
+        sourceUrl: data.url || `https://codelook.info/lookup/${barcode}`,
+      };
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+async function lookupProduct(barcode: string) {
+  const results: ProductResult[] = [];
+  
+  // Run all database lookups in parallel
+  const [off, upc, ddg, cl] = await Promise.allSettled([
+    lookupOpenFoodFacts(barcode),
+    lookupUPCitemdb(barcode),
+    lookupDuckDuckGo(barcode),
+    lookupCodeLook(barcode),
+  ]);
+  
+  if (off.status === 'fulfilled' && off.value) results.push(off.value);
+  if (upc.status === 'fulfilled' && upc.value) results.push(upc.value);
+  if (ddg.status === 'fulfilled' && ddg.value) results.push(ddg.value);
+  if (cl.status === 'fulfilled' && cl.value) results.push(cl.value);
+  
+  // If we have a product name, search for manufacturing origin AND brand origin in parallel
+  // Use Promise.race with timeout so slow searches don't block the response
+  const offResult = off.status === 'fulfilled' ? off.value : null;
+  if (offResult && offResult.name) {
+    const searchTimeout = new Promise<null>(resolve => setTimeout(() => resolve(null), 8000));
+    
+    const [originSearch, brandSearch] = await Promise.all([
+      offResult.manufacturing 
+        ? Promise.resolve(null) 
+        : Promise.race([searchManufacturingOrigin(offResult.name, offResult.brand), searchTimeout]),
+      offResult.brand 
+        ? Promise.race([searchBrandOrigin(offResult.brand), searchTimeout]) 
+        : Promise.resolve(null),
+    ]);
+    
+    if (originSearch) {
+      (offResult as any).manufacturing = originSearch.origin;
+      (offResult as any).originSourceUrl = originSearch.sourceUrl;
+      (offResult as any).originFromSearch = true;
+    }
+    if (brandSearch) {
+      (offResult as any).brandOrigin = brandSearch.origin;
+      (offResult as any).brandCompany = brandSearch.company;
+      (offResult as any).brandOriginFromSearch = true;
+    }
+  }
+  
+  return results;
+}
+
+// ── GS1 prefix table (server-side) ───────────────────────────
+
+const GS1_PREFIXES: [string, string, string, string][] = [
+  ['000','139','🇺🇸','United States'],
+  ['300','379','🇫🇷','France'],
+  ['380','380','🇧🇬','Bulgaria'],
+  ['383','383','🇸🇮','Slovenia'],
+  ['385','385','🇭🇷','Croatia'],
+  ['387','387','🇧🇦','Bosnia & Herzegovina'],
+  ['389','389','🇲🇪','Montenegro'],
+  ['390','390','🇧🇦','Bosnia & Herzegovina'],
+  ['400','440','🇩🇪','Germany'],
+  ['450','459','🇯🇵','Japan'],
+  ['460','469','🇷🇺','Russia'],
+  ['470','470','🇰🇬','Kyrgyzstan'],
+  ['471','471','🇹🇼','Taiwan'],
+  ['474','474','🇪🇪','Estonia'],
+  ['475','475','🇱🇻','Latvia'],
+  ['476','476','🇦🇿','Azerbaijan'],
+  ['477','477','🇱🇹','Lithuania'],
+  ['478','478','🇺🇿','Uzbekistan'],
+  ['479','479','🇹🇼','Taiwan'],
+  ['480','480','🇵🇭','Philippines'],
+  ['481','481','🇧🇾','Belarus'],
+  ['482','482','🇺🇦','Ukraine'],
+  ['483','483','🇲🇩','Moldova'],
+  ['484','484','🇲🇪','Montenegro'],
+  ['485','485','🇦🇲','Armenia'],
+  ['486','486','🇬🇪','Georgia'],
+  ['487','487','🇰🇿','Kazakhstan'],
+  ['488','489','🇹🇭','Thailand'],
+  ['489','489','🇭🇰','Hong Kong'],
+  ['490','499','🇯🇵','Japan'],
+  ['500','509','🇬🇧','United Kingdom'],
+  ['520','521','🇬🇷','Greece'],
+  ['528','528','🇱🇧','Lebanon'],
+  ['529','529','🇨🇾','Cyprus'],
+  ['530','530','🇦🇱','Albania'],
+  ['531','531','🇲🇰','North Macedonia'],
+  ['535','535','🇲🇹','Malta'],
+  ['539','539','🇮🇪','Ireland'],
+  ['540','549','🇧🇪','Belgium & Luxembourg'],
+  ['560','560','🇵🇹','Portugal'],
+  ['569','569','🇮🇸','Iceland'],
+  ['570','579','🇩🇰','Denmark'],
+  ['590','590','🇵🇱','Poland'],
+  ['594','594','🇷🇴','Romania'],
+  ['599','599','🇭🇺','Hungary'],
+  ['600','601','🇿🇦','South Africa'],
+  ['603','603','🇬🇭','Ghana'],
+  ['604','604','🇸🇳','Senegal'],
+  ['608','608','🇧🇭','Bahrain'],
+  ['609','609','🇲🇦','Morocco'],
+  ['611','611','🇲🇷','Mauritania'],
+  ['613','613','🇩🇿','Algeria'],
+  ['616','616','🇰🇪','Kenya'],
+  ['618','618','🇨🇮','Ivory Coast'],
+  ['619','619','🇹🇳','Tunisia'],
+  ['621','621','🇸🇾','Syria'],
+  ['622','622','🇪🇸','Spain (experimental)'],
+  ['623','623','🇱🇻','Latvia'],
+  ['624','624','🇧🇫','Burkina Faso'],
+  ['625','625','🇬🇷','Greece (experimental)'],
+  ['626','626','🇲🇦','Morocco'],
+  ['627','627','🇰🇼','Kuwait'],
+  ['628','628','🇯🇴','Jordan'],
+  ['629','629','🇹🇷','Turkey'],
+  ['640','649','🇸🇦','Saudi Arabia'],
+  ['690','699','🇨🇳','China'],
+  ['700','709','🇳🇴','Norway'],
+  ['710','710','🇨🇴','Colombia'],
+  ['711','711','🇰🇷','South Korea'],
+  ['712','712','🇹🇼','Taiwan'],
+  ['713','713','🇪🇪','Estonia'],
+  ['714','714','🇧🇫','Burkina Faso'],
+  ['715','715','🇨🇭','Switzerland'],
+  ['716','716','🇻🇺','Vanuatu'],
+  ['717','717','🇸🇾','Syria'],
+  ['718','718','🇧🇴','Bolivia'],
+  ['719','719','🇵🇪','Peru'],
+  ['720','720','🇲🇽','Mexico'],
+  ['721','721','🇧🇷','Brazil'],
+  ['722','722','🇨🇱','Chile'],
+  ['723','723','🇨🇴','Colombia'],
+  ['724','724','🇦🇷','Argentina'],
+  ['725','725','🇪🇷','Eritrea'],
+  ['726','726','🇿🇦','South Africa'],
+  ['727','727','🇳🇿','New Zealand'],
+  ['728','728','🇪🇬','Egypt'],
+  ['729','729','🇮🇱','Israel'],
+  ['730','739','🇸🇪','Sweden'],
+  ['740','740','🇬🇹','Guatemala'],
+  ['741','741','🇸🇻','El Salvador'],
+  ['742','742','🇭🇳','Honduras'],
+  ['743','743','🇳🇮','Nicaragua'],
+  ['744','744','🇨🇷','Costa Rica'],
+  ['745','745','🇵🇦','Panama'],
+  ['746','746','🇩🇴','Dominican Republic'],
+  ['747','747','🇲🇽','Mexico'],
+  ['748','748','🇧🇿','Belize'],
+  ['749','749','🇨🇱','Chile'],
+  ['750','750','🇲🇽','Mexico'],
+  ['751','751','🇨🇦','Canada'],
+  ['752','752','🇲🇿','Mozambique'],
+  ['753','753','🇨🇺','Cuba'],
+  ['754','755','🇨🇦','Canada'],
+  ['756','756','🇨🇷','Costa Rica'],
+  ['757','757','🇬🇹','Guatemala'],
+  ['758','758','🇵🇦','Panama'],
+  ['759','759','🇻🇪','Venezuela'],
+  ['760','769','🇨🇭','Switzerland'],
+  ['770','770','🇨🇴','Colombia'],
+  ['771','771','🇧🇷','Brazil'],
+  ['773','773','🇺🇾','Uruguay'],
+  ['775','775','🇵🇪','Peru'],
+  ['777','777','🇧🇴','Bolivia'],
+  ['779','779','🇦🇷','Argentina'],
+  ['780','780','🇨🇱','Chile'],
+  ['784','784','🇵🇬','Paraguay'],
+  ['786','786','🇪🇨','Ecuador'],
+  ['789','790','🇧🇷','Brazil'],
+  ['800','839','🇮🇹','Italy'],
+  ['840','849','🇪🇸','Spain'],
+  ['850','850','🇨🇺','Cuba'],
+  ['858','858','🇸🇰','Slovakia'],
+  ['859','859','🇨🇿','Czech Republic'],
+  ['860','860','🇷🇸','Serbia'],
+  ['865','865','🇲🇳','Mongolia'],
+  ['867','867','🇰🇿','Kazakhstan'],
+  ['868','869','🇹🇷','Turkey'],
+  ['870','879','🇳🇱','Netherlands'],
+  ['880','880','🇰🇷','South Korea'],
+  ['884','884','🇰🇭','Cambodia'],
+  ['885','885','🇹🇭','Thailand'],
+  ['888','888','🇸🇬','Singapore'],
+  ['890','890','🇮🇳','India'],
+  ['893','893','🇻🇳','Vietnam'],
+  ['894','894','🇹🇭','Thailand'],
+  ['896','896','🇵🇱','Poland'],
+  ['899','899','🇮🇩','Indonesia'],
+  ['900','919','🇦🇹','Austria'],
+  ['930','939','🇦🇺','Australia'],
+  ['940','949','🇳🇿','New Zealand'],
+  ['950','950','🇬🇧','United Kingdom'],
+  ['955','955','🇲🇾','Malaysia'],
+  ['958','958','🇲🇴','Macau'],
+  ['960','969','🇬🇧','Global Office (GS1)'],
+  ['977','977','🇬🇧','Serial Publications (ISSN)'],
+  ['978','979','🇬🇧','Books (ISBN)'],
+  ['980','980','🇬🇧','Refund receipts'],
+  ['981','984','🇬🇧','Common Currency Coupons'],
+  ['985','985','🇬🇧','UK coupons'],
+  ['986','989','🇬🇧','GS1 UK coupons'],
+  ['990','999','🇬🇧','GS1 coupons'],
+];
+
+function gs1Lookup(barcode: string) {
+  const prefix = barcode.substring(0, 3);
+  const num = parseInt(prefix);
+  for (const [lo, hi, flag, country] of GS1_PREFIXES) {
+    if (num >= parseInt(lo) && num <= parseInt(hi)) {
+      return { flag, country, prefix };
+    }
+  }
+  return { flag: '🌍', country: 'Unknown', prefix };
+}
+
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+
+    // API endpoint: /api/lookup?barcode=XXXXXXXXXX
+    if (url.pathname === '/api/lookup') {
+      const barcode = (url.searchParams.get('barcode') || '').replace(/\D/g, '');
+      if (!barcode || barcode.length < 8) {
+        return new Response(JSON.stringify({ error: 'Invalid barcode' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      try {
+        const products = await lookupProduct(barcode);
+        const gs1 = gs1Lookup(barcode);
+        
+        return new Response(JSON.stringify({
+          barcode,
+          gs1,
+          products,
+        }), {
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'public, max-age=3600',
+            'Access-Control-Allow-Origin': '*',
+          },
+        });
+      } catch (err: any) {
+        return new Response(JSON.stringify({ error: err.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // Static assets
+    if (env.ASSETS) {
+      return env.ASSETS.fetch(request);
+    }
+    return new Response('Not found', { status: 404 });
+  },
+};

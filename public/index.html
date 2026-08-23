@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0e14">
+<title>ScanOrigin — Barcode Scanner</title>
+<link rel="manifest" href='data:application/manifest+json,{"name":"ScanOrigin","short_name":"ScanOrigin","start_url":".","display":"standalone","background_color":"#0a0e14","theme_color":"#0a0e14","icons":[]}'>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+:root { --bg:#0a0e14; --card:#141b26; --accent:#00d4aa; --accent-dim:#00a589; --text:#e8e8e8; --muted:#6b7280; --border:#1e2733; --danger:#ef4444; --warn:#f59e0b; }
+html,body { height:100%; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; overscroll-behavior:none; }
+#app { max-width:480px; margin:0 auto; min-height:100dvh; display:flex; flex-direction:column; }
+
+/* Header */
+.header { padding:16px 20px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--bg); z-index:10; }
+.header h1 { font-size:18px; font-weight:600; letter-spacing:-0.02em; }
+.header h1 span { color:var(--accent); }
+.header .subtitle { font-size:11px; color:var(--muted); margin-top:2px; }
+
+/* Scanner area */
+.scanner-wrap { position:relative; width:100%; aspect-ratio:3/4; max-height:420px; background:#000; overflow:hidden; margin:0; }
+#video { width:100%; height:100%; object-fit:cover; display:block; }
+#canvas { display:none; }
+.scan-overlay { position:absolute; inset:0; pointer-events:none; }
+.scan-box { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:70%; height:200px; border:2px solid var(--accent); border-radius:12px; box-shadow:0 0 0 9999px rgba(10,14,20,0.65); }
+.scan-box::before, .scan-box::after { content:''; position:absolute; width:24px; height:24px; border:3px solid var(--accent); }
+.scan-box::before { top:-3px; left:-3px; border-right:none; border-bottom:none; border-radius:8px 0 0 0; }
+.scan-box::after { bottom:-3px; right:-3px; border-left:none; border-top:none; border-radius:0 0 8px 0; }
+.scan-line { position:absolute; left:5%; right:5%; top:50%; height:2px; background:linear-gradient(90deg, transparent, var(--accent), transparent); animation:scanLine 2s ease-in-out infinite; }
+@keyframes scanLine { 0%,100%{ transform:translateY(-80px); opacity:0.5; } 50%{ transform:translateY(80px); opacity:1; } }
+.scan-hint { position:absolute; bottom:16px; left:0; right:0; text-align:center; color:rgba(255,255,255,0.7); font-size:13px; pointer-events:none; }
+
+/* Controls */
+.controls { padding:12px 20px; display:flex; gap:10px; }
+.btn { flex:1; padding:14px 16px; border:none; border-radius:12px; font-size:15px; font-weight:600; cursor:pointer; transition:opacity .15s, transform .1s; display:flex; align-items:center; justify-content:center; gap:8px; }
+.btn:active { transform:scale(0.97); }
+.btn-primary { background:var(--accent); color:#000; }
+.btn-primary:disabled { opacity:0.4; cursor:default; }
+.btn-secondary { background:var(--card); color:var(--text); border:1px solid var(--border); }
+.btn-stop { background:var(--danger); color:#fff; display:none; }
+
+/* Manual input */
+.manual-input { padding:0 20px 12px; display:flex; gap:10px; }
+.manual-input input { flex:1; padding:12px 14px; background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:15px; font-family:monospace; }
+.manual-input input:focus { outline:none; border-color:var(--accent); }
+.manual-input button { padding:12px 16px; background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--accent); font-weight:600; cursor:pointer; white-space:nowrap; }
+
+/* Results */
+.results { padding:20px; flex:1; overflow-y:auto; }
+.result-card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:20px; margin-bottom:16px; }
+.result-card.loading { text-align:center; padding:40px 20px; }
+.spinner { width:32px; height:32px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; margin:0 auto 12px; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+.product-name { font-size:18px; font-weight:600; margin-bottom:4px; line-height:1.3; }
+.product-brand { font-size:14px; color:var(--muted); margin-bottom:16px; }
+
+.info-row { display:flex; align-items:center; gap:12px; padding:12px 0; border-top:1px solid var(--border); }
+.info-row:first-of-type { border-top:none; }
+.info-label { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; width:90px; flex-shrink:0; }
+.info-value { font-size:15px; font-weight:500; }
+.info-value.mono { font-family:monospace; }
+
+.country-flag { font-size:28px; margin-right:4px; vertical-align:middle; }
+.country-name { font-size:16px; vertical-align:middle; }
+.origin-confidence { font-size:11px; padding:3px 8px; border-radius:6px; margin-top:4px; display:inline-block; }
+.confidence-high { background:rgba(0,212,170,0.15); color:var(--accent); }
+.confidence-medium { background:rgba(245,158,11,0.15); color:var(--warn); }
+.confidence-low { background:rgba(239,68,68,0.15); color:var(--danger); }
+
+.price-tag { font-size:20px; font-weight:700; color:var(--accent); }
+.price-range { font-size:13px; color:var(--muted); }
+
+.product-image { width:100%; height:200px; object-fit:contain; border-radius:12px; background:#0d1117; margin-bottom:16px; }
+
+.no-result { text-align:center; padding:40px 20px; color:var(--muted); }
+.no-result .emoji { font-size:48px; margin-bottom:12px; }
+.no-result .msg { font-size:15px; margin-bottom:4px; }
+.no-result .sub { font-size:13px; }
+
+.error-card { background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.3); border-radius:12px; padding:16px; color:var(--danger); font-size:14px; margin-bottom:16px; }
+
+.scan-history { margin-top:24px; }
+.scan-history h3 { font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:12px; }
+.history-item { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--border); cursor:pointer; }
+.history-item:last-child { border-bottom:none; }
+.history-barcode { font-family:monospace; font-size:13px; color:var(--muted); flex-shrink:0; }
+.history-name { font-size:14px; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.history-flag { font-size:20px; flex-shrink:0; }
+
+/* Responsive */
+@media (min-width:481px) { #app { border-left:1px solid var(--border); border-right:1px solid var(--border); } }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div>
+      <h1>Scan<span>Origin</span></h1>
+      <div class="subtitle">Barcode scanner · price · country of origin</div>
+    </div>
+  </div>
+
+  <div class="scanner-wrap" id="scannerWrap">
+    <video id="video" playsinline muted></video>
+    <canvas id="canvas"></canvas>
+    <div class="scan-overlay">
+      <div class="scan-box"><div class="scan-line"></div></div>
+      <div class="scan-hint" id="scanHint">Point camera at a barcode</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn btn-primary" id="startBtn" onclick="startScanning()">📷 Start Scanner</button>
+    <button class="btn btn-stop" id="stopBtn" onclick="stopScanning()">⏹ Stop</button>
+    <button class="btn btn-secondary" id="switchBtn" onclick="switchCamera()" style="display:none;">🔄 Flip</button>
+  </div>
+
+  <div class="manual-input">
+    <input type="text" id="manualCode" placeholder="Or type barcode (e.g. 5012345678900)" inputmode="numeric" onkeydown="if(event.key==='Enter')lookupManual()">
+    <button onclick="lookupManual()">Look Up</button>
+  </div>
+
+  <div class="results" id="results">
+    <div class="no-result">
+      <div class="emoji">📱</div>
+      <div class="msg">Scan a product barcode</div>
+      <div class="sub">or type the number above to get started</div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+// ── GS1 Country Prefix Table ─────────────────────────────────
+const GS1_PREFIXES = [
+  ['000','139','🇺🇸','United States'],
+  ['300','379','🇫🇷','France'],
+  ['380','380','🇧🇬','Bulgaria'],
+  ['383','383','🇸🇮','Slovenia'],
+  ['385','385','🇭🇷','Croatia'],
+  ['387','387','🇧🇦','Bosnia & Herzegovina'],
+  ['389','389','🇲🇪','Montenegro'],
+  ['390','390','🇧🇦','Bosnia & Herzegovina'],
+  ['400','440','🇩🇪','Germany'],
+  ['450','459','🇯🇵','Japan'],
+  ['460','469','🇷🇺','Russia'],
+  ['470','470','🇰🇬','Kyrgyzstan'],
+  ['471','471','🇹🇼','Taiwan'],
+  ['474','474','🇪🇪','Estonia'],
+  ['475','475','🇱🇻','Latvia'],
+  ['476','476','🇦🇿','Azerbaijan'],
+  ['477','477','🇱🇹','Lithuania'],
+  ['478','478','🇺🇿','Uzbekistan'],
+  ['479','479','🇹🇼','Taiwan'],
+  ['480','480','🇵🇭','Philippines'],
+  ['481','481','🇧🇾','Belarus'],
+  ['482','482','🇺🇦','Ukraine'],
+  ['483','483','🇲🇩','Moldova'],
+  ['484','484','🇲🇪','Montenegro'],
+  ['485','485','🇦🇲','Armenia'],
+  ['486','486','🇬🇪','Georgia'],
+  ['487','487','🇰🇿','Kazakhstan'],
+  ['488','489','🇹🇭','Thailand'],
+  ['489','489','🇭🇰','Hong Kong'],
+  ['490','499','🇯🇵','Japan'],
+  ['500','509','🇬🇧','United Kingdom'],
+  ['520','521','🇬🇷','Greece'],
+  ['528','528','🇱🇧','Lebanon'],
+  ['529','529','🇨🇾','Cyprus'],
+  ['530','530','🇦🇱','Albania'],
+  ['531','531','🇲🇰','North Macedonia'],
+  ['535','535','🇲🇹','Malta'],
+  ['539','539','🇮🇪','Ireland'],
+  ['540','549','🇧🇪','Belgium & Luxembourg'],
+  ['560','560','🇵🇹','Portugal'],
+  ['569','569','🇮🇸','Iceland'],
+  ['570','579','🇩🇰','Denmark'],
+  ['590','590','🇵🇱','Poland'],
+  ['594','594','🇷🇴','Romania'],
+  ['599','599','🇭🇺','Hungary'],
+  ['600','601','🇿🇦','South Africa'],
+  ['603','603','🇬🇭','Ghana'],
+  ['604','604','🇸🇳','Senegal'],
+  ['608','608','🇧🇭','Bahrain'],
+  ['609','609','🇲🇦','Morocco'],
+  ['611','611','🇲🇷','Mauritania'],
+  ['613','613','🇩🇿','Algeria'],
+  ['616','616','🇰🇪','Kenya'],
+  ['618','618','🇨🇮','Ivory Coast'],
+  ['619','619','🇹🇳','Tunisia'],
+  ['621','621','🇸🇾','Syria'],
+  ['622','622','🇪🇸','Spain (experimental)'],
+  ['623','623','🇱🇻','Latvia'],
+  ['624','624','🇧🇫','Burkina Faso'],
+  ['625','625','🇬🇷','Greece (experimental)'],
+  ['626','626','🇲🇦','Morocco'],
+  ['627','627','🇰🇼','Kuwait'],
+  ['628','628','🇯🇴','Jordan'],
+  ['629','629','🇹🇷','Turkey'],
+  ['640','649','🇸🇦','Saudi Arabia'],
+  ['690','699','🇨🇳','China'],
+  ['700','709','🇳🇴','Norway'],
+  ['710','710','🇨🇴','Colombia'],
+  ['711','711','🇰🇷','South Korea'],
+  ['712','712','🇹🇼','Taiwan'],
+  ['713','713','🇪🇪','Estonia'],
+  ['714','714','🇧🇫','Burkina Faso'],
+  ['715','715','🇨🇭','Switzerland'],
+  ['716','716','🇻🇺','Vanuatu'],
+  ['717','717','🇸🇾','Syria'],
+  ['718','718','🇧🇴','Bolivia'],
+  ['719','719','🇵🇪','Peru'],
+  ['720','720','🇲🇽','Mexico'],
+  ['721','721','🇧🇷','Brazil'],
+  ['722','722','🇨🇱','Chile'],
+  ['723','723','🇨🇴','Colombia'],
+  ['724','724','🇦🇷','Argentina'],
+  ['725','725','🇪🇷','Eritrea'],
+  ['726','726','🇿🇦','South Africa'],
+  ['727','727','🇳🇿','New Zealand'],
+  ['728','728','🇪🇱','Egypt'],
+  ['729','729','🇮🇱','Israel'],
+  ['730','739','🇸🇪','Sweden'],
+  ['740','740','🇬🇹','Guatemala'],
+  ['741','741','🇸🇻','El Salvador'],
+  ['742','742','🇭🇳','Honduras'],
+  ['743','743','🇳🇮','Nicaragua'],
+  ['744','744','🇨🇷','Costa Rica'],
+  ['745','745','🇵🇦','Panama'],
+  ['746','746','🇩🇴','Dominican Republic'],
+  ['747','747','🇲🇽','Mexico'],
+  ['748','748','🇧🇿','Belize'],
+  ['749','749','🇨🇱','Chile'],
+  ['750','750','🇲🇽','Mexico'],
+  ['751','751','🇨🇦','Canada'],
+  ['752','752','🇲🇿','Mozambique'],
+  ['753','753','🇨🇺','Cuba'],
+  ['754','755','🇨🇦','Canada'],
+  ['756','756','🇨🇷','Costa Rica'],
+  ['757','757','🇨🇹','Guatemala'],
+  ['758','758','🇵🇦','Panama'],
+  ['759','759','🇻🇪','Venezuela'],
+  ['760','769','🇨🇭','Switzerland'],
+  ['770','770','🇨🇴','Colombia'],
+  ['771','771','🇧🇷','Brazil'],
+  ['773','773','🇺🇾','Uruguay'],
+  ['775','775','🇵🇪','Peru'],
+  ['777','777','🇧🇴','Bolivia'],
+  ['779','779','🇦🇷','Argentina'],
+  ['780','780','🇨🇱','Chile'],
+  ['784','784','🇨🇬','Paraguay'],
+  ['786','786','🇪🇨','Ecuador'],
+  ['789','790','🇧🇷','Brazil'],
+  ['800','839','🇮🇹','Italy'],
+  ['840','849','🇪🇸','Spain'],
+  ['850','850','🇨🇺','Cuba'],
+  ['858','858','🇸🇰','Slovakia'],
+  ['859','859','🇨🇿','Czech Republic'],
+  ['860','860','🇷🇸','Serbia'],
+  ['865','865','🇲🇳','Mongolia'],
+  ['867','867','🇰🇿','Kazakhstan'],
+  ['868','869','🇹🇷','Turkey'],
+  ['870','879','🇳🇱','Netherlands'],
+  ['880','880','🇰🇷','South Korea'],
+  ['884','884','🇰🇭','Cambodia'],
+  ['885','885','🇹🇭','Thailand'],
+  ['888','888','🇸🇬','Singapore'],
+  ['890','890','🇮🇳','India'],
+  ['893','893','🇻🇳','Vietnam'],
+  ['894','894','🇹🇭','Thailand'],
+  ['896','896','🇵🇱','Poland'],
+  ['899','899','🇮🇩','Indonesia'],
+  ['900','919','🇦🇹','Austria'],
+  ['930','939','🇦🇺','Australia'],
+  ['940','949','🇳🇿','New Zealand'],
+  ['950','950','🇬🇧','United Kingdom'],
+  ['955','955','🇲🇾','Malaysia'],
+  ['958','958','🇲🇴','Macau'],
+  ['960','969','🇬🇧','Global Office (GS1)'],
+  ['977','977','🇬🇧','Serial Publications (ISSN)'],
+  ['978','979','🇬🇧','Books (ISBN)'],
+  ['980','980','🇬🇧','Refund receipts'],
+  ['981','984','🇬🇧','Common Currency Coupons'],
+  ['985','985','🇬🇧','UK coupons'],
+  ['986','989','🇬🇧','GS1 UK coupons'],
+  ['990','999','🇬🇧','GS1 coupons'],
+];
+
+function gs1Lookup(barcode) {
+  const prefix = barcode.substring(0, 3);
+  const num = parseInt(prefix);
+  for (const [lo, hi, flag, country] of GS1_PREFIXES) {
+    if (num >= parseInt(lo) && num <= parseInt(hi)) {
+      return { flag, country, prefix };
+    }
+  }
+  return { flag: '🌍', country: 'Unknown', prefix };
+}
+
+// ── Confidence rating ─────────────────────────────────────────
+function getConfidence(gs1Country, productData) {
+  // If we have product data with manufacturing info, that's the gold standard
+  if (productData && productData.manufacturing && productData.manufacturing.trim()) {
+    return { level: 'high', label: 'High — from product label data' };
+  }
+  // If we have a product name match from any source, medium confidence on origin
+  if (productData && productData.name && productData.name.trim()) {
+    return { level: 'medium', label: 'Medium — barcode registration country' };
+  }
+  return { level: 'low', label: 'Low — barcode registration only' };
+}
+
+// ── Product Data Lookup ──────────────────────────────────────
+async function lookupProduct(barcode) {
+  const results = [];
+
+  // Call our API backend (Cloudflare Worker) which hits multiple sources server-side
+  const API_BASE = 'https://scanorigin.thaneclaw.workers.dev';
+  try {
+    const apiResp = await fetch(`${API_BASE}/api/lookup?barcode=${encodeURIComponent(barcode)}`);
+    if (apiResp.ok) {
+      const apiData = await apiResp.json();
+      if (apiData.products && apiData.products.length > 0) {
+        return apiData.products;
+      }
+    }
+  } catch (e) { console.log('API lookup error:', e); }
+
+  // Fallback: direct browser calls if Worker API fails
+  // 1. Open Food Facts (free, food products)
+  try {
+    const offResp = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`);
+    if (offResp.ok) {
+      const offData = await offResp.json();
+      if (offData.status === 1 && offData.product) {
+        results.push({
+          source: 'Open Food Facts',
+          name: offData.product.product_name || offData.product.generic_name || '',
+          brand: offData.product.brands || '',
+          image: offData.product.image_front_url || offData.product.image_url || '',
+          quantity: offData.product.quantity || '',
+          countries: offData.product.countries || '',
+          manufacturing: offData.product.manufacturing_places || '',
+          ingredients: offData.product.ingredients_text || '',
+          categories: offData.product.categories || '',
+          nutriscore: offData.product.nutriscore_grade || '',
+          sourceUrl: offData.product.link || `https://world.openfoodfacts.org/product/${barcode}`,
+        });
+      }
+    }
+  } catch (e) { console.log('OFF error:', e); }
+
+  // 2. UPCitemdb (free tier, broader products)
+  try {
+    const upcResp = await fetch(`https://api.upcitemdb.com/prod/trial/${barcode}`);
+    if (upcResp.ok) {
+      const upcData = await upcResp.json();
+      if (upcData.code === 'OK' && upcData.items && upcData.items.length > 0) {
+        const item = upcData.items[0];
+        results.push({
+          source: 'UPCitemdb',
+          name: item.title || '',
+          brand: item.brand || '',
+          image: item.image || '',
+          category: item.category || '',
+          description: item.description || '',
+          offers: item.offers || [],
+          sourceUrl: item.link || '',
+        });
+      }
+    }
+  } catch (e) { console.log('UPC error:', e); }
+
+  return results;
+}
+
+// ── Rendering ─────────────────────────────────────────────────
+const resultsDiv = document.getElementById('results');
+const scanHistory = [];
+
+function showLoading(barcode) {
+  resultsDiv.innerHTML = `
+    <div class="result-card loading">
+      <div class="spinner"></div>
+      <div>Looking up ${barcode}...</div>
+    </div>`;
+}
+
+function escapeHtml(s) {
+  const div = document.createElement('div');
+  div.textContent = s || '';
+  return div.innerHTML;
+}
+
+function renderResult(barcode, productData) {
+  const gs1 = gs1Lookup(barcode);
+  const confidence = getConfidence(gs1.country, productData[0]);
+
+  // Merge product info from available sources
+  const off = productData.find(p => p.source === 'Open Food Facts');
+  const upc = productData.find(p => p.source === 'UPCitemdb');
+  const ddg = productData.find(p => p.source === 'DuckDuckGo');
+  const cl = productData.find(p => p.source === 'CodeLook');
+  const primary = off || upc || cl || ddg || {};
+  const hasData = productData.length > 0;
+
+  let html = '<div class="result-card">';
+
+  // Product image
+  if (primary.image) {
+    html += `<img class="product-image" src="${escapeHtml(primary.image)}" alt="Product" onerror="this.style.display='none'">`;
+  }
+
+  // Product name
+  if (primary.name) {
+    html += `<div class="product-name">${escapeHtml(primary.name)}</div>`;
+  } else {
+    html += `<div class="product-name">Unknown Product</div>`;
+  }
+
+  // Brand
+  if (primary.brand) {
+    html += `<div class="product-brand">${escapeHtml(primary.brand)}</div>`;
+  }
+
+  // Barcode
+  html += `<div class="info-row"><div class="info-label">Barcode</div><div class="info-value mono">${escapeHtml(barcode)}</div></div>`;
+
+  // Country of origin (GS1) — be honest: this is barcode registration, not manufacturing
+  html += `<div class="info-row"><div class="info-label">Barcode Origin</div><div>`;
+  html += `<span class="country-flag">${gs1.flag}</span><span class="country-name">${escapeHtml(gs1.country)}</span>`;
+  html += `<div class="origin-confidence confidence-${confidence.level}">${confidence.label}</div>`;
+  html += `</div></div>`;
+
+  // Brand/parent company headquarters (from web search)
+  if (off && off.brandOrigin) {
+    const companyLabel = off.brandCompany && off.brandCompany !== off.brand 
+      ? `${escapeHtml(off.brand)} → ${escapeHtml(off.brandCompany)}` 
+      : escapeHtml(off.brand);
+    html += `<div class="info-row"><div class="info-label">Brand From</div><div>`;
+    html += `<div class="info-value">${escapeHtml(off.brandOrigin)}</div>`;
+    html += `<span style="color:var(--muted);font-size:11px">${companyLabel} (web search)</span>`;
+    html += `</div></div>`;
+  }
+
+  // Manufacturing places (from OFF if available)
+  if (off && off.manufacturing) {
+    const originLabel = off.originFromSearch ? 'Likely Made In' : 'Made In';
+    const originNote = off.originFromSearch ? ' (from web search)' : '';
+    html += `<div class="info-row"><div class="info-label">${escapeHtml(originLabel)}</div><div>`;
+    html += `<div class="info-value">${escapeHtml(off.manufacturing)}${originNote ? `<span style="color:var(--muted);font-size:11px">${escapeHtml(originNote)}</span>` : ''}</div>`;
+    html += `</div></div>`;
+  }
+
+  // Countries where sold (from OFF)
+  if (off && off.countries) {
+    html += `<div class="info-row"><div class="info-label">Sold In</div><div class="info-value">${escapeHtml(off.countries)}</div></div>`;
+  }
+
+  // Category
+  if (primary.category) {
+    html += `<div class="info-row"><div class="info-label">Category</div><div class="info-value">${escapeHtml(primary.category)}</div></div>`;
+  } else if (off && off.categories) {
+    html += `<div class="info-row"><div class="info-label">Category</div><div class="info-value">${escapeHtml(off.categories)}</div></div>`;
+  }
+
+  // Description (from UPCitemdb, CodeLook, or DuckDuckGo)
+  if (primary.description && !off) {
+    html += `<div class="info-row"><div class="info-label">Details</div><div class="info-value" style="font-size:14px">${escapeHtml(primary.description)}</div></div>`;
+  }
+
+  // NutriScore (food only)
+  if (off && off.nutriscore) {
+    const scoreColors = { a: '#00843d', b: '#7fba00', c: '#ffc700', d: '#ff8a00', e: '#e54335' };
+    const scoreColor = scoreColors[off.nutriscore] || '#666';
+    html += `<div class="info-row"><div class="info-label">NutriScore</div><div class="info-value" style="text-transform:uppercase;font-weight:700;color:${scoreColor}">${escapeHtml(off.nutriscore)}</div></div>`;
+  }
+
+  // Price offers (from UPCitemdb)
+  if (upc && upc.offers && upc.offers.length > 0) {
+    const prices = upc.offers.map(o => parseFloat(o.price)).filter(p => !isNaN(p));
+    if (prices.length > 0) {
+      const min = Math.min(...prices);
+      const max = Math.max(...prices);
+      const avg = (prices.reduce((a,b) => a+b, 0) / prices.length).toFixed(2);
+      html += `<div class="info-row"><div class="info-label">Price</div><div>`;
+      if (min === max) {
+        html += `<span class="price-tag">$${min.toFixed(2)}</span>`;
+      } else {
+        html += `<span class="price-tag">$${min.toFixed(2)} - $${max.toFixed(2)}</span>`;
+        html += `<div class="price-range">avg $${avg} · ${prices.length} retailer${prices.length>1?'s':''}</div>`;
+      }
+      html += `</div></div>`;
+    }
+  }
+
+  // Ingredients (food only, collapsible)
+  if (off && off.ingredients) {
+    const ing = off.ingredients.substring(0, 200);
+    html += `<div class="info-row"><div class="info-label">Ingredients</div><div class="info-value" style="font-size:13px;font-weight:400;line-height:1.4">${escapeHtml(ing)}${off.ingredients.length > 200 ? '...' : ''}</div></div>`;
+  }
+
+  // Source links
+  html += `<div class="info-row"><div class="info-label">Sources</div><div class="info-value" style="font-size:13px">`;
+  const sourceLinks = [];
+  if (off) sourceLinks.push(`<a href="${escapeHtml(off.sourceUrl)}" target="_blank" style="color:var(--accent)">Open Food Facts</a>`);
+  if (upc) sourceLinks.push(`<a href="${escapeHtml(upc.sourceUrl)}" target="_blank" style="color:var(--accent)">UPCitemdb</a>`);
+  if (cl) sourceLinks.push(`<a href="${escapeHtml(cl.sourceUrl)}" target="_blank" style="color:var(--accent)">CodeLook</a>`);
+  if (ddg) sourceLinks.push(`<a href="${escapeHtml(ddg.sourceUrl)}" target="_blank" style="color:var(--accent)">DuckDuckGo</a>`);
+  if (sourceLinks.length > 0) {
+    html += sourceLinks.join(' · ');
+  } else {
+    html += `<span style="color:var(--muted)">GS1 prefix only</span>`;
+  }
+  html += `</div></div>`;
+
+  html += '</div>';
+
+  // History entry
+  scanHistory.unshift({ barcode, name: primary.name || 'Unknown', flag: gs1.flag, country: gs1.country });
+  if (scanHistory.length > 10) scanHistory.pop();
+
+  // History section
+  if (scanHistory.length > 1) {
+    html += '<div class="scan-history"><h3>Recent Scans</h3>';
+    scanHistory.forEach((h, i) => {
+      if (i === 0) return; // skip current
+      html += `<div class="history-item" onclick="lookupManual('${h.barcode}')">`;
+      html += `<span class="history-flag">${h.flag}</span>`;
+      html += `<span class="history-name">${escapeHtml(h.name)}</span>`;
+      html += `<span class="history-barcode">${h.barcode}</span>`;
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  resultsDiv.innerHTML = html;
+}
+
+function showNoResult(barcode) {
+  const gs1 = gs1Lookup(barcode);
+  resultsDiv.innerHTML = `
+    <div class="result-card">
+      <div class="product-name">No product data found</div>
+      <div class="product-brand">Barcode: ${escapeHtml(barcode)}</div>
+      <div class="info-row"><div class="info-label">Origin</div><div>
+        <span class="country-flag">${gs1.flag}</span><span class="country-name">${escapeHtml(gs1.country)}</span>
+        <div class="origin-confidence confidence-low">Low — barcode registration country only</div>
+      </div></div>
+    </div>`;
+}
+
+function showError(msg) {
+  resultsDiv.innerHTML = `<div class="error-card">${escapeHtml(msg)}</div>`;
+}
+
+// ── Barcode Scanning ──────────────────────────────────────────
+let html5Qr = null;
+let currentCamera = 'environment';
+let scanning = false;
+
+async function startScanning() {
+  if (scanning) return;
+  try {
+    document.getElementById('startBtn').style.display = 'none';
+    document.getElementById('stopBtn').style.display = 'flex';
+
+    // Try BarcodeDetector API first (native, faster)
+    if ('BarcodeDetector' in window) {
+      await startNativeScanner();
+      return;
+    }
+
+    // Fallback to html5-qrcode
+    await startHtml5Scanner();
+
+  } catch (err) {
+    console.error('Scanner start error:', err);
+    showError('Could not access camera. Make sure you are on HTTPS and have granted camera permissions. Error: ' + err.message);
+    resetButtons();
+  }
+}
+
+// Native BarcodeDetector (Chrome Android, Samsung)
+async function startNativeScanner() {
+  const video = document.getElementById('video');
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: currentCamera, width: { ideal: 1280 }, height: { ideal: 720 } }
+  });
+  video.srcObject = stream;
+  await video.play();
+  scanning = true;
+
+  const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39'] });
+
+  // Require N consecutive identical reads to confirm a real barcode
+  let confirmCount = 0;
+  let confirmCode = null;
+  const REQUIRED_CONFIRMATIONS = 3;
+  const WARMUP_MS = 800; // ignore reads for first 800ms while camera focuses
+  const scanStartTime = Date.now();
+
+  // Visual feedback
+  const scanHint = document.getElementById('scanHint');
+  const scanBox = document.querySelector('.scan-box');
+
+  async function detect() {
+    if (!scanning) return;
+
+    // Skip reads during warmup
+    if (Date.now() - scanStartTime < WARMUP_MS) {
+      scanHint.textContent = 'Focusing camera...';
+      requestAnimationFrame(detect);
+      return;
+    }
+
+    scanHint.textContent = 'Point camera at a barcode';
+
+    try {
+      const codes = await detector.detect(video);
+      if (codes.length > 0) {
+        const code = codes[0].rawValue;
+
+        // Validate barcode length (EAN-13=13, UPC-A=12, EAN-8=8)
+        if (code.length < 8 || code.length > 14 || !/^\d+$/.test(code)) {
+          confirmCount = 0;
+          confirmCode = null;
+          requestAnimationFrame(detect);
+          return;
+        }
+
+        if (code === confirmCode) {
+          confirmCount++;
+          scanHint.textContent = `Locked on: ${code} (${confirmCount}/${REQUIRED_CONFIRMATIONS})`;
+          scanBox.style.borderColor = 'var(--warn)';
+        } else {
+          confirmCode = code;
+          confirmCount = 1;
+          scanHint.textContent = `Detecting: ${code} (1/${REQUIRED_CONFIRMATIONS})`;
+          scanBox.style.borderColor = 'var(--warn)';
+        }
+
+        if (confirmCount >= REQUIRED_CONFIRMATIONS) {
+          scanHint.textContent = '✓ Scanned!';
+          scanBox.style.borderColor = 'var(--accent)';
+          stopScanning();
+          processBarcode(code);
+          return;
+        }
+      } else {
+        // No code found this frame, reset confirmation
+        if (confirmCount > 0) {
+          confirmCount = 0;
+          confirmCode = null;
+          scanBox.style.borderColor = 'var(--accent)';
+        }
+      }
+    } catch (e) { /* frame not ready */ }
+    requestAnimationFrame(detect);
+  }
+  detect();
+}
+
+// html5-qrcode fallback (Safari iOS, Firefox, older browsers)
+async function startHtml5Scanner() {
+  // html5-qrcode needs its own container, so we use it differently
+  // We'll hide the video element and let html5-qrcode create its own
+  document.getElementById('video').style.display = 'none';
+
+  html5Qr = new Html5Qrcode('scannerWrap', {
+    experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+    verbose: false,
+  });
+
+  const config = {
+    fps: 10,
+    qrbox: { width: 250, height: 180 },
+    aspectRatio: 0.75,
+    formatsToSupport: [
+      Html5QrcodeSupportedFormats.EAN_13,
+      Html5QrcodeSupportedFormats.EAN_8,
+      Html5QrcodeSupportedFormats.UPC_A,
+      Html5QrcodeSupportedFormats.UPC_E,
+      Html5QrcodeSupportedFormats.CODE_128,
+      Html5QrcodeSupportedFormats.CODE_39,
+    ],
+  };
+
+  // Require multiple consecutive reads to prevent false positives
+  let lastRead = null;
+  let readCount = 0;
+  const REQUIRED = 3;
+
+  await html5Qr.start(
+    { facingMode: currentCamera },
+    config,
+    (decodedText) => {
+      // Validate: digits only, reasonable length
+      if (!/^\d{8,14}$/.test(decodedText)) {
+        lastRead = null;
+        readCount = 0;
+        return;
+      }
+      if (decodedText === lastRead) {
+        readCount++;
+      } else {
+        lastRead = decodedText;
+        readCount = 1;
+      }
+      if (readCount >= REQUIRED) {
+        stopScanning();
+        processBarcode(decodedText);
+      }
+    },
+    (err) => { /* per-frame failure, ignore */ }
+  );
+  scanning = true;
+
+  // Apply scan overlay on top of html5-qrcode's video
+  document.querySelector('.scan-overlay').style.display = 'block';
+}
+
+function stopScanning() {
+  scanning = false;
+
+  // Stop native
+  const video = document.getElementById('video');
+  if (video.srcObject) {
+    video.srcObject.getTracks().forEach(t => t.stop());
+    video.srcObject = null;
+  }
+
+  // Stop html5-qrcode
+  if (html5Qr) {
+    html5Qr.stop().then(() => {
+      html5Qr.clear();
+      html5Qr = null;
+      document.getElementById('video').style.display = 'block';
+    }).catch(() => {
+      html5Qr = null;
+      document.getElementById('video').style.display = 'block';
+    });
+  }
+
+  resetButtons();
+}
+
+function resetButtons() {
+  document.getElementById('startBtn').style.display = 'flex';
+  document.getElementById('stopBtn').style.display = 'none';
+}
+
+async function switchCamera() {
+  currentCamera = currentCamera === 'environment' ? 'user' : 'environment';
+  if (scanning) {
+    stopScanning();
+    setTimeout(() => startScanning(), 300);
+  }
+}
+
+// ── Main lookup flow ─────────────────────────────────────────
+async function processBarcode(barcode) {
+  // Clean barcode (digits only)
+  barcode = barcode.replace(/\D/g, '');
+
+  if (!barcode || barcode.length < 8) {
+    showError('Invalid barcode: too short');
+    return;
+  }
+
+  showLoading(barcode);
+
+  try {
+    const productData = await lookupProduct(barcode);
+    if (productData.length > 0) {
+      renderResult(barcode, productData);
+    } else {
+      showNoResult(barcode);
+    }
+  } catch (err) {
+    console.error('Lookup error:', err);
+    showError('Lookup failed: ' + err.message);
+  }
+}
+
+function lookupManual() {
+  const input = document.getElementById('manualCode');
+  const code = input.value.trim();
+  if (code) {
+    processBarcode(code);
+    input.value = '';
+  }
+}
+
+// ── PWA install prompt ────────────────────────────────────────
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+});
+
+// ── Visibility handling ───────────────────────────────────────
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && scanning) stopScanning();
+});
+</script>
+</body>
+</html>
