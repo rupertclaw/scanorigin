@@ -317,7 +317,7 @@ async function lookupProduct(barcode) {
   const results = [];
 
   // Call our API backend (Cloudflare Worker) which hits multiple sources server-side
-  const API_BASE = 'https://scanorigin.thaneclaw.workers.dev';
+  const API_BASE = 'https://scanorigin-api.onrender.com';
   try {
     const apiResp = await fetch(`${API_BASE}/api/lookup?barcode=${encodeURIComponent(barcode)}`);
     if (apiResp.ok) {
@@ -784,7 +784,7 @@ async function processBarcode(barcode) {
           const params = new URLSearchParams();
           if (off.name) params.set('name', off.name);
           if (off.brand) params.set('brand', off.brand);
-          const enrichUrl = `https://scanorigin.thaneclaw.workers.dev/api/enrich?${params}`;
+          const enrichUrl = `https://scanorigin-api.onrender.com/api/enrich?${params}`;
           const enrichResp = await fetch(enrichUrl, { signal: AbortSignal.timeout(12000) });
           if (enrichResp.ok) {
             const enrichData = await enrichResp.json();
