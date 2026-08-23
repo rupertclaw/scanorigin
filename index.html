@@ -376,130 +376,6 @@ async function lookupProduct(barcode) {
   return results;
 }
 
-// ── Client-side web search for origin enrichment ───────────────
-// Uses CORS proxy to fetch DDG HTML search results from browser
-
-async function fetchDDGHtml(query) {
-  const PROXIES = [
-    (q) => `https://corsproxy.io/?url=${encodeURIComponent(`https://html.duckduckgo.com/html/?q=${q}`)}`,
-    (q) => `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://html.duckduckgo.com/html/?q=${q}`)}`,
-  ];
-  
-  for (const makeUrl of PROXIES) {
-    try {
-      const resp = await fetch(makeUrl(query), {
-        headers: { 'Accept': 'text/html' },
-        signal: AbortSignal.timeout(8000),
-      });
-      if (resp.ok) {
-        const html = await resp.text();
-        if (html && html.length > 1000) return html;
-      }
-    } catch (e) { /* try next proxy */ }
-  }
-  return null;
-}
-
-function extractDDGSnippets(html) {
-  const snippets = [];
-  const regex = /class="result__snippet"[^>]*>(.*?)<\/a>/gs;
-  let match;
-  while ((match = regex.exec(html)) !== null) {
-    const text = match[1]
-      .replace(/<[^>]+>/g, '')
-      .replace(/&amp;/g, '&')
-      .replace(/&quot;/g, '"')
-      .replace(/&#x27;/g, "'")
-      .trim();
-    if (text.length > 10) snippets.push(text);
-  }
-  return snippets;
-}
-
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const SEASONS = ['Spring','Summer','Autumn','Winter','Fall'];
-const FALSE_POSITIVES = ['The','This','These','Many','Some','Such','Over','Most','Recent','Early','Late','Which','That','Those'];
-const MAJOR_CITIES = ['Atlanta','London','Berlin','Paris','Tokyo','New York','Chicago','Toronto','Sydney','Amsterdam','Madrid','Rome','Munich','Milan','Geneva','Zurich','Stockholm','Oslo','Copenhagen','Dublin','Vienna','Lisbon','Warsaw','Moscow','Seoul','Beijing','Mumbai','Sao Paulo','Mexico City','Istanbul','Athens','Brussels','Helsinki','Den Dolder','Amersfoort','Naples','Tiberias','Utrecht'];
-
-const NATIONALITY_MAP = {
-  'American': 'United States', 'British': 'United Kingdom', 'German': 'Germany',
-  'French': 'France', 'Italian': 'Italy', 'Spanish': 'Spain', 'Dutch': 'Netherlands',
-  'Belgian': 'Belgium', 'Swiss': 'Switzerland', 'Swedish': 'Sweden', 'Norwegian': 'Norway',
-  'Danish': 'Denmark', 'Finnish': 'Finland', 'Polish': 'Poland', 'Irish': 'Ireland',
-  'Portuguese': 'Portugal', 'Austrian': 'Austria', 'Canadian': 'Canada',
-  'Australian': 'Australia', 'Japanese': 'Japan', 'Chinese': 'China',
-  'Korean': 'South Korea', 'Indian': 'India', 'Brazilian': 'Brazil',
-  'Mexican': 'Mexico', 'Turkish': 'Turkey', 'Greek': 'Greece', 'Russian': 'Russia',
-};
-
-function isValidCountry(c) {
-  return c && c.length > 2 && c.length < 30 &&
-    !MONTHS.includes(c) && !SEASONS.includes(c) && 
-    !FALSE_POSITIVES.includes(c) && !MAJOR_CITIES.includes(c);
-}
-
-async function clientSearchManufacturingOrigin(productName, brand) {
-  const query = encodeURIComponent(`${brand} ${productName} where is it made origin country`);
-  const html = await fetchDDGHtml(query);
-  if (!html) return null;
-  
-  const snippets = extractDDGSnippets(html);
-  const patterns = [
-    /made\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
-    /manufactured\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
-    /produced\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
-    /originated\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
-    /originally\s+(?:developed|created|made|produced)\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
-  ];
-  
-  for (const snippet of snippets) {
-    for (const pattern of patterns) {
-      const m = snippet.match(pattern);
-      if (m && isValidCountry(m[1].trim())) {
-        return { origin: m[1].trim() };
-      }
-    }
-  }
-  return null;
-}
-
-async function clientSearchBrandOrigin(brand) {
-  const query = encodeURIComponent(`${brand} company headquarters parent company country`);
-  const html = await fetchDDGHtml(query);
-  if (!html) return null;
-  
-  const snippets = extractDDGSnippets(html);
-  let foundCompany = '';
-  
-  // Look for parent company
-  for (const snippet of snippets) {
-    const pm = snippet.match(/(?:subsidiary\s+of|owned\s+by|parent\s+company\s+(?:is\s+)?)\s+([A-Z][A-Za-z]+(?:[-\s][A-Z][A-Za-z]+)*)/);
-    if (pm && pm[1].trim().length > 2 && !['The','This','These'].includes(pm[1].trim())) {
-      foundCompany = pm[1].trim();
-      break;
-    }
-  }
-  
-  // Nationality patterns
-  for (const snippet of snippets) {
-    const nm = snippet.match(/\b(American|British|German|French|Italian|Spanish|Dutch|Belgian|Swiss|Swedish|Norwegian|Danish|Finnish|Polish|Irish|Portuguese|Austrian|Canadian|Australian|Japanese|Chinese|Korean|Indian|Brazilian|Mexican|Turkish|Greek|Russian)\b(?:[-\s]?(?:family[-\s]?)?(?:owned|multinational|brand|company|corporation|manufacturer))/);
-    if (nm && NATIONALITY_MAP[nm[1]]) {
-      return { origin: NATIONALITY_MAP[nm[1]], company: foundCompany || brand };
-    }
-  }
-  
-  // Headquarters patterns
-  for (const snippet of snippets) {
-    for (const pattern of [/headquartered\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/, /based\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/]) {
-      const m = snippet.match(pattern);
-      if (m && isValidCountry(m[1].trim())) {
-        return { origin: m[1].trim(), company: foundCompany || brand };
-      }
-    }
-  }
-  return null;
-}
-
 // ── Rendering ─────────────────────────────────────────────────
 const resultsDiv = document.getElementById('results');
 const scanHistory = [];
@@ -901,25 +777,28 @@ async function processBarcode(barcode) {
     if (productData.length > 0) {
       renderResult(barcode, productData);
       
-      // After initial render, enrich with web searches for origin and brand
+      // After initial render, enrich with web search from Worker (no CORS issues)
       const off = productData.find(p => p.source === 'Open Food Facts');
-      if (off && off.name) {
-        // Run both searches in parallel, then re-render
-        const [originSearch, brandSearch] = await Promise.all([
-          off.manufacturing ? Promise.resolve(null) : clientSearchManufacturingOrigin(off.name, off.brand),
-          off.brand ? clientSearchBrandOrigin(off.brand) : Promise.resolve(null),
-        ]);
-        if (originSearch) {
-          off.manufacturing = originSearch.origin;
-          off.originFromSearch = true;
-        }
-        if (brandSearch) {
-          off.brandOrigin = brandSearch.origin;
-          off.brandCompany = brandSearch.company;
-        }
-        if (originSearch || brandSearch) {
-          renderResult(barcode, productData);  // re-render with enriched data
-        }
+      if (off && (off.name || off.brand)) {
+        try {
+          const params = new URLSearchParams();
+          if (off.name) params.set('name', off.name);
+          if (off.brand) params.set('brand', off.brand);
+          const enrichUrl = `https://scanorigin.thaneclaw.workers.dev/api/enrich?${params}`;
+          const enrichResp = await fetch(enrichUrl, { signal: AbortSignal.timeout(12000) });
+          if (enrichResp.ok) {
+            const enrichData = await enrichResp.json();
+            if (enrichData.manufacturing) {
+              off.manufacturing = enrichData.manufacturing;
+              off.originFromSearch = true;
+            }
+            if (enrichData.brandOrigin) {
+              off.brandOrigin = enrichData.brandOrigin;
+              off.brandCompany = enrichData.brandCompany;
+            }
+            renderResult(barcode, productData);  // re-render with enriched data
+          }
+        } catch (e) { /* enrichment failed, keep initial render */ }
       }
     } else {
       showNoResult(barcode);

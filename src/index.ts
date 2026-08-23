@@ -521,6 +521,47 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
+    // Enrichment endpoint: /api/enrich?barcode=X&name=...&brand=...
+    // Returns { manufacturing, brandOrigin, brandCompany } from web search
+    if (url.pathname === '/api/enrich') {
+      const name = url.searchParams.get('name') || '';
+      const brand = url.searchParams.get('brand') || '';
+      
+      if (!name && !brand) {
+        return new Response(JSON.stringify({ error: 'Missing name or brand' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        });
+      }
+      
+      try {
+        const [originSearch, brandSearch] = await Promise.all([
+          name ? searchManufacturingOrigin(name, brand) : Promise.resolve(null),
+          brand ? searchBrandOrigin(brand) : Promise.resolve(null),
+        ]);
+        
+        const result: any = {};
+        if (originSearch) {
+          result.manufacturing = originSearch.origin;
+          result.manufacturingFromSearch = true;
+        }
+        if (brandSearch) {
+          result.brandOrigin = brandSearch.origin;
+          result.brandCompany = brandSearch.company;
+          result.brandFromSearch = true;
+        }
+        
+        return new Response(JSON.stringify(result), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        });
+      } catch (err: any) {
+        return new Response(JSON.stringify({ error: err.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        });
+      }
+    }
+
     // API endpoint: /api/lookup?barcode=XXXXXXXXXX
     if (url.pathname === '/api/lookup') {
       const barcode = (url.searchParams.get('barcode') || '').replace(/\D/g, '');
