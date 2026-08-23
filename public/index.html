@@ -835,11 +835,7 @@ function lookupManual() {
 let deferredPrompt;
 const installBtn = document.getElementById('installBtn');
 
-// Debug: log whether beforeinstallprompt fires
-console.log('[PWA] beforeinstallprompt listener registered');
-
 window.addEventListener('beforeinstallprompt', (e) => {
-  console.log('[PWA] beforeinstallprompt FIRED');
   e.preventDefault();
   deferredPrompt = e;
   installBtn.classList.remove('hidden');
@@ -848,10 +844,8 @@ window.addEventListener('beforeinstallprompt', (e) => {
 installBtn.addEventListener('click', async () => {
   if (deferredPrompt) {
     // Android Chrome — fire the native install prompt
-    console.log('[PWA] Calling deferredPrompt.prompt()');
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-    console.log('[PWA] Install outcome:', outcome);
     if (outcome === 'accepted') {
       installBtn.classList.add('hidden');
     }
@@ -859,24 +853,10 @@ installBtn.addEventListener('click', async () => {
   } else {
     // Detect platform
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    const ua = navigator.userAgent;
-    const swReg = await navigator.serviceWorker?.getRegistration();
-    const debugInfo = [
-      'Platform: ' + (isIOS ? 'iOS' : 'Android/other'),
-      'UA: ' + ua.substring(0, 80),
-      'beforeinstallprompt fired: ' + (deferredPrompt ? 'YES' : 'NO'),
-      'SW registered: ' + (swReg ? 'YES' : 'NO'),
-      'SW active: ' + (swReg?.active ? 'YES' : 'NO'),
-      'Display mode: ' + (window.matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'browser'),
-      'HTTPS: ' + (location.protocol === 'https:' ? 'YES' : 'NO'),
-    ].join('\n');
-
-    console.log('[PWA] Debug info:\n' + debugInfo);
-
     if (isIOS) {
-      alert('To install on iPhone:\n\n1. Tap the Share button (⬆️) at the bottom of Safari\n2. Select "Add to Home Screen"\n\n--- Debug ---\n' + debugInfo);
+      alert('To install on iPhone:\n\n1. Tap the Share button (⬆️) at the bottom of Safari\n2. Select "Add to Home Screen"');
     } else {
-      alert('To install on Android:\n\nTap the browser menu (⋮) in Chrome and select "Install app" or "Add to Home screen".\n\n--- Debug ---\n' + debugInfo);
+      alert('To install on Android:\n\nTap the browser menu (⋮) in Chrome and select "Install app" or "Add to Home screen".');
     }
   }
 });
