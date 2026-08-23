@@ -1,0 +1,487 @@
+const express = require('express');
+const cors = require('cors');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(cors());
+
+// ── Product lookup from multiple sources ─────────────────────
+
+async function lookupOpenFoodFacts(barcode) {
+  try {
+    const resp = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`, {
+      headers: { 'User-Agent': 'ScanOrigin/1.0' },
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    if (data.status === 1 && data.product) {
+      const p = data.product;
+      return {
+        source: 'Open Food Facts',
+        name: p.product_name || p.generic_name || '',
+        brand: p.brands || '',
+        image: p.image_front_url || p.image_url || '',
+        quantity: p.quantity || '',
+        countries: p.countries || '',
+        manufacturing: p.manufacturing_places || '',
+        ingredients: p.ingredients_text || '',
+        categories: p.categories || '',
+        nutriscore: p.nutriscore_grade || '',
+        sourceUrl: p.link || `https://world.openfoodfacts.org/product/${barcode}`,
+      };
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+async function lookupUPCitemdb(barcode) {
+  try {
+    const resp = await fetch(`https://api.upcitemdb.com/prod/trial/${barcode}`, {
+      headers: { 'User-Agent': 'ScanOrigin/1.0' },
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    if (data.code === 'OK' && data.items && data.items.length > 0) {
+      const item = data.items[0];
+      return {
+        source: 'UPCitemdb',
+        name: item.title || '',
+        brand: item.brand || '',
+        image: item.image || '',
+        category: item.category || '',
+        description: item.description || '',
+        offers: item.offers || [],
+        sourceUrl: item.link || '',
+      };
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+async function lookupDuckDuckGo(barcode) {
+  try {
+    const resp = await fetch(
+      `https://api.duckduckgo.com/?q=${barcode}+barcode+product&format=json&no_html=1`,
+      { headers: { 'User-Agent': 'ScanOrigin/1.0' } }
+    );
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    if (data.AbstractText && data.AbstractText.length > 10) {
+      return {
+        source: 'DuckDuckGo',
+        name: data.Heading || 'Product found via search',
+        brand: '',
+        image: data.Image || '',
+        description: data.AbstractText,
+        sourceUrl: data.AbstractURL || '',
+      };
+    }
+    if (data.RelatedTopics && data.RelatedTopics.length > 0) {
+      for (const topic of data.RelatedTopics) {
+        if (topic.Text && topic.Text.length > 10) {
+          return {
+            source: 'DuckDuckGo',
+            name: topic.Text.substring(0, 100),
+            brand: '',
+            image: topic.Icon?.URL || '',
+            description: topic.Text,
+            sourceUrl: topic.FirstURL || '',
+          };
+        }
+      }
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+async function lookupCodeLook(barcode) {
+  try {
+    const resp = await fetch(`https://codelook.info/lookup/${barcode}`, {
+      headers: { 'User-Agent': 'ScanOrigin/1.0', 'Accept': 'application/json' },
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    if (data && data.name) {
+      return {
+        source: 'CodeLook',
+        name: data.name || '',
+        brand: data.brand || '',
+        image: data.image || '',
+        category: data.category || '',
+        description: data.description || '',
+        sourceUrl: data.url || `https://codelook.info/lookup/${barcode}`,
+      };
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+// ── Web search for manufacturing origin ───────────────────────
+
+const DDG_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+const MAJOR_CITIES = ['Atlanta','London','Berlin','Paris','Tokyo','New York','Chicago','Toronto','Sydney','Amsterdam','Madrid','Rome','Munich','Milan','Geneva','Zurich','Stockholm','Oslo','Copenhagen','Dublin','Vienna','Lisbon','Warsaw','Moscow','Seoul','Beijing','Mumbai','Sao Paulo','Mexico City','Istanbul','Athens','Brussels','Helsinki','Den Dolder','Amersfoort','Naples','Tiberias','Utrecht'];
+
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const SEASONS = ['Spring','Summer','Autumn','Winter','Fall'];
+const FALSE_POSITIVES = ['The','This','These','Many','Some','Such','Over','Most','Recent','Early','Late','Which','That','Those'];
+
+function isValidCountry(c) {
+  return c && c.length > 2 && c.length < 30 &&
+    !MONTHS.includes(c) && !SEASONS.includes(c) &&
+    !FALSE_POSITIVES.includes(c) && !MAJOR_CITIES.includes(c);
+}
+
+function extractDDGSnippets(html) {
+  const snippets = [];
+  const regex = /class="result__snippet"[^>]*>(.*?)<\/a>/gs;
+  let match;
+  while ((match = regex.exec(html)) !== null) {
+    const text = match[1]
+      .replace(/<[^>]+>/g, '')
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"')
+      .replace(/&#x27;/g, "'")
+      .trim();
+    if (text.length > 10) snippets.push(text);
+  }
+  return snippets;
+}
+
+async function searchManufacturingOrigin(productName, brand) {
+  const query = encodeURIComponent(`${brand} ${productName} where is it made origin country`);
+  try {
+    const resp = await fetch(`https://html.duckduckgo.com/html/?q=${query}`, {
+      headers: { 'User-Agent': DDG_UA },
+    });
+    if (!resp.ok) return null;
+    const html = await resp.text();
+    const snippets = extractDDGSnippets(html);
+
+    const patterns = [
+      /made\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
+      /manufactured\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
+      /produced\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
+      /originated\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
+      /originally\s+(?:developed|created|made|produced)\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
+      /from\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+by/i,
+      /factory\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
+      /plant\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
+      /headquartered\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
+    ];
+
+    for (const snippet of snippets) {
+      for (const pattern of patterns) {
+        const m = snippet.match(pattern);
+        if (m && m[1] && isValidCountry(m[1].trim())) {
+          return { origin: m[1].trim() };
+        }
+      }
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+// ── Brand/parent company origin search ────────────────────────
+
+const NATIONALITY_MAP = {
+  'American': 'United States', 'US': 'United States', 'USA': 'United States',
+  'British': 'United Kingdom', 'UK': 'United Kingdom',
+  'German': 'Germany', 'French': 'France', 'Italian': 'Italy',
+  'Spanish': 'Spain', 'Dutch': 'Netherlands', 'Belgian': 'Belgium',
+  'Swiss': 'Switzerland', 'Swedish': 'Sweden', 'Norwegian': 'Norway',
+  'Danish': 'Denmark', 'Finnish': 'Finland', 'Polish': 'Poland',
+  'Irish': 'Ireland', 'Portuguese': 'Portugal', 'Austrian': 'Austria',
+  'Canadian': 'Canada', 'Australian': 'Australia', 'Japanese': 'Japan',
+  'Chinese': 'China', 'Korean': 'South Korea', 'Indian': 'India',
+  'Brazilian': 'Brazil', 'Mexican': 'Mexico', 'Turkish': 'Turkey',
+  'Greek': 'Greece', 'Russian': 'Russia',
+};
+
+async function searchBrandOrigin(brand) {
+  if (!brand || brand.length < 2) return null;
+  const query = encodeURIComponent(`${brand} company headquarters parent company country`);
+  try {
+    const resp = await fetch(`https://html.duckduckgo.com/html/?q=${query}`, {
+      headers: { 'User-Agent': DDG_UA },
+    });
+    if (!resp.ok) return null;
+    const html = await resp.text();
+    const snippets = extractDDGSnippets(html);
+
+    let foundCompany = '';
+
+    // First pass: parent company / owned by
+    for (const snippet of snippets) {
+      const pm = snippet.match(/(?:subsidiary\s+of|owned\s+by|parent\s+company\s+(?:is\s+)?)\s+([A-Z][A-Za-z]+(?:[-\s][A-Z][A-Za-z]+)*)/);
+      if (pm && pm[1] && pm[1].trim().length > 2 && !['The','This','These','Many','Some'].includes(pm[1].trim())) {
+        foundCompany = pm[1].trim();
+        break;
+      }
+    }
+
+    // Second pass: nationality patterns
+    for (const snippet of snippets) {
+      const nm = snippet.match(/\b(American|British|German|French|Italian|Spanish|Dutch|Belgian|Swiss|Swedish|Norwegian|Danish|Finnish|Polish|Irish|Portuguese|Austrian|Canadian|Australian|Japanese|Chinese|Korean|Indian|Brazilian|Mexican|Turkish|Greek|Russian)\b(?:[-\s]?(?:family[-\s]?)?(?:owned|multinational|brand|company|corporation|manufacturer))/);
+      if (nm && nm[1] && NATIONALITY_MAP[nm[1]]) {
+        return { origin: NATIONALITY_MAP[nm[1]], company: foundCompany || brand };
+      }
+    }
+
+    // Third pass: headquartered in City, Country
+    for (const snippet of snippets) {
+      const hq = snippet.match(/(?:headquartered|based)\s+in\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*,\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/);
+      if (hq && hq[1] && isValidCountry(hq[1].trim())) {
+        return { origin: hq[1].trim(), company: foundCompany || brand };
+      }
+    }
+
+    // Fourth pass: simple headquartered/based in Country
+    for (const snippet of snippets) {
+      for (const pattern of [/headquartered\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/, /based\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/, /founded\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/]) {
+        const m = snippet.match(pattern);
+        if (m && m[1] && isValidCountry(m[1].trim())) {
+          return { origin: m[1].trim(), company: foundCompany || brand };
+        }
+      }
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+// ── Product lookup aggregator ────────────────────────────────
+
+async function lookupProduct(barcode) {
+  const results = [];
+  const [off, upc, ddg, cl] = await Promise.allSettled([
+    lookupOpenFoodFacts(barcode),
+    lookupUPCitemdb(barcode),
+    lookupDuckDuckGo(barcode),
+    lookupCodeLook(barcode),
+  ]);
+  if (off.status === 'fulfilled' && off.value) results.push(off.value);
+  if (upc.status === 'fulfilled' && upc.value) results.push(upc.value);
+  if (ddg.status === 'fulfilled' && ddg.value) results.push(ddg.value);
+  if (cl.status === 'fulfilled' && cl.value) results.push(cl.value);
+  return results;
+}
+
+// ── GS1 prefix table ──────────────────────────────────────────
+
+const GS1_PREFIXES = [
+  ['000','139','🇺🇸','United States'],
+  ['300','379','🇫🇷','France'],
+  ['380','380','🇧🇬','Bulgaria'],
+  ['383','383','🇸🇮','Slovenia'],
+  ['385','385','🇭🇷','Croatia'],
+  ['387','387','🇧🇦','Bosnia & Herzegovina'],
+  ['389','389','🇲🇪','Montenegro'],
+  ['390','390','🇧🇦','Bosnia & Herzegovina'],
+  ['400','440','🇩🇪','Germany'],
+  ['450','459','🇯🇵','Japan'],
+  ['460','469','🇷🇺','Russia'],
+  ['470','470','🇰🇬','Kyrgyzstan'],
+  ['471','471','🇹🇼','Taiwan'],
+  ['474','474','🇪🇪','Estonia'],
+  ['475','475','🇱🇻','Latvia'],
+  ['476','476','🇦🇿','Azerbaijan'],
+  ['477','477','🇱🇹','Lithuania'],
+  ['478','478','🇺🇿','Uzbekistan'],
+  ['479','479','🇹🇼','Taiwan'],
+  ['480','480','🇵🇭','Philippines'],
+  ['481','481','🇧🇾','Belarus'],
+  ['482','482','🇺🇦','Ukraine'],
+  ['483','483','🇲🇩','Moldova'],
+  ['484','484','🇲🇪','Montenegro'],
+  ['485','485','🇦🇲','Armenia'],
+  ['486','486','🇬🇪','Georgia'],
+  ['487','487','🇰🇿','Kazakhstan'],
+  ['488','489','🇹🇭','Thailand'],
+  ['489','489','🇭🇰','Hong Kong'],
+  ['490','499','🇯🇵','Japan'],
+  ['500','509','🇬🇧','United Kingdom'],
+  ['520','521','🇬🇷','Greece'],
+  ['528','528','🇱🇧','Lebanon'],
+  ['529','529','🇨🇾','Cyprus'],
+  ['530','530','🇦🇱','Albania'],
+  ['531','531','🇲🇰','North Macedonia'],
+  ['535','535','🇲🇹','Malta'],
+  ['539','539','🇮🇪','Ireland'],
+  ['540','549','🇧🇪','Belgium & Luxembourg'],
+  ['560','560','🇵🇹','Portugal'],
+  ['569','569','🇮🇸','Iceland'],
+  ['570','579','🇩🇰','Denmark'],
+  ['590','590','🇵🇱','Poland'],
+  ['594','594','🇷🇴','Romania'],
+  ['599','599','🇭🇺','Hungary'],
+  ['600','601','🇿🇦','South Africa'],
+  ['603','603','🇬🇭','Ghana'],
+  ['604','604','🇸🇳','Senegal'],
+  ['608','608','🇧🇭','Bahrain'],
+  ['609','609','🇲🇦','Morocco'],
+  ['611','611','🇲🇷','Mauritania'],
+  ['613','613','🇩🇿','Algeria'],
+  ['616','616','🇰🇪','Kenya'],
+  ['618','618','🇨🇮','Ivory Coast'],
+  ['619','619','🇹🇳','Tunisia'],
+  ['621','621','🇸🇾','Syria'],
+  ['622','622','🇪🇸','Spain (experimental)'],
+  ['623','623','🇱🇻','Latvia'],
+  ['624','624','🇧🇫','Burkina Faso'],
+  ['625','625','🇬🇷','Greece (experimental)'],
+  ['626','626','🇲🇦','Morocco'],
+  ['627','627','🇰🇼','Kuwait'],
+  ['628','628','🇯🇴','Jordan'],
+  ['629','629','🇹🇷','Turkey'],
+  ['640','649','🇸🇦','Saudi Arabia'],
+  ['690','699','🇨🇳','China'],
+  ['700','709','🇳🇴','Norway'],
+  ['710','710','🇨🇴','Colombia'],
+  ['711','711','🇰🇷','South Korea'],
+  ['712','712','🇹🇼','Taiwan'],
+  ['713','713','🇪🇪','Estonia'],
+  ['714','714','🇧🇫','Burkina Faso'],
+  ['715','715','🇨🇭','Switzerland'],
+  ['716','716','🇻🇺','Vanuatu'],
+  ['717','717','🇸🇾','Syria'],
+  ['718','718','🇧🇴','Bolivia'],
+  ['719','719','🇵🇪','Peru'],
+  ['720','720','🇲🇽','Mexico'],
+  ['721','721','🇧🇷','Brazil'],
+  ['722','722','🇨🇱','Chile'],
+  ['723','723','🇨🇴','Colombia'],
+  ['724','724','🇦🇷','Argentina'],
+  ['725','725','🇪🇷','Eritrea'],
+  ['726','726','🇿🇦','South Africa'],
+  ['727','727','🇳🇿','New Zealand'],
+  ['728','728','🇪🇬','Egypt'],
+  ['729','729','🇮🇱','Israel'],
+  ['730','739','🇸🇪','Sweden'],
+  ['740','740','🇬🇹','Guatemala'],
+  ['741','741','🇸🇻','El Salvador'],
+  ['742','742','🇭🇳','Honduras'],
+  ['743','743','🇳🇮','Nicaragua'],
+  ['744','744','🇨🇷','Costa Rica'],
+  ['745','745','🇵🇦','Panama'],
+  ['746','746','🇩🇴','Dominican Republic'],
+  ['747','747','🇲🇽','Mexico'],
+  ['748','748','🇧🇿','Belize'],
+  ['749','749','🇨🇱','Chile'],
+  ['750','750','🇲🇽','Mexico'],
+  ['751','751','🇨🇦','Canada'],
+  ['752','752','🇲🇿','Mozambique'],
+  ['753','753','🇨🇺','Cuba'],
+  ['754','755','🇨🇦','Canada'],
+  ['756','756','🇨🇷','Costa Rica'],
+  ['757','757','🇬🇹','Guatemala'],
+  ['758','758','🇵🇦','Panama'],
+  ['759','759','🇻🇪','Venezuela'],
+  ['760','769','🇨🇭','Switzerland'],
+  ['770','770','🇨🇴','Colombia'],
+  ['771','771','🇧🇷','Brazil'],
+  ['773','773','🇺🇾','Uruguay'],
+  ['775','775','🇵🇪','Peru'],
+  ['777','777','🇧🇴','Bolivia'],
+  ['779','779','🇦🇷','Argentina'],
+  ['780','780','🇨🇱','Chile'],
+  ['784','784','🇵🇬','Paraguay'],
+  ['786','786','🇪🇨','Ecuador'],
+  ['789','790','🇧🇷','Brazil'],
+  ['800','839','🇮🇹','Italy'],
+  ['840','849','🇪🇸','Spain'],
+  ['850','850','🇨🇺','Cuba'],
+  ['858','858','🇸🇰','Slovakia'],
+  ['859','859','🇨🇿','Czech Republic'],
+  ['860','860','🇷🇸','Serbia'],
+  ['865','865','🇲🇳','Mongolia'],
+  ['867','867','🇰🇿','Kazakhstan'],
+  ['868','869','🇹🇷','Turkey'],
+  ['870','879','🇳🇱','Netherlands'],
+  ['880','880','🇰🇷','South Korea'],
+  ['884','884','🇰🇭','Cambodia'],
+  ['885','885','🇹🇭','Thailand'],
+  ['888','888','🇸🇬','Singapore'],
+  ['890','890','🇮🇳','India'],
+  ['893','893','🇻🇳','Vietnam'],
+  ['894','894','🇹🇭','Thailand'],
+  ['896','896','🇵🇱','Poland'],
+  ['899','899','🇮🇩','Indonesia'],
+  ['900','919','🇦🇹','Austria'],
+  ['930','939','🇦🇺','Australia'],
+  ['940','949','🇳🇿','New Zealand'],
+  ['950','950','🇬🇧','United Kingdom'],
+  ['955','955','🇲🇾','Malaysia'],
+  ['958','958','🇲🇴','Macau'],
+  ['960','969','🇬🇧','Global Office (GS1)'],
+  ['977','977','🇬🇧','Serial Publications (ISSN)'],
+  ['978','979','🇬🇧','Books (ISBN)'],
+  ['980','980','🇬🇧','Refund receipts'],
+  ['981','984','🇬🇧','Common Currency Coupons'],
+  ['985','985','🇬🇧','UK coupons'],
+  ['986','989','🇬🇧','GS1 UK coupons'],
+  ['990','999','🇬🇧','GS1 coupons'],
+];
+
+function gs1Lookup(barcode) {
+  const prefix = barcode.substring(0, 3);
+  const num = parseInt(prefix);
+  for (const [lo, hi, flag, country] of GS1_PREFIXES) {
+    if (num >= parseInt(lo) && num <= parseInt(hi)) {
+      return { flag, country, prefix };
+    }
+  }
+  return { flag: '🌍', country: 'Unknown', prefix };
+}
+
+// ── Routes ───────────────────────────────────────────────────
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.get('/api/lookup', async (req, res) => {
+  const barcode = (req.query.barcode || '').replace(/\D/g, '');
+  if (!barcode || barcode.length < 8) {
+    return res.status(400).json({ error: 'Invalid barcode' });
+  }
+  try {
+    const products = await lookupProduct(barcode);
+    const gs1 = gs1Lookup(barcode);
+    res.json({ barcode, gs1, products });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/enrich', async (req, res) => {
+  const name = req.query.name || '';
+  const brand = req.query.brand || '';
+  if (!name && !brand) {
+    return res.status(400).json({ error: 'Missing name or brand' });
+  }
+  try {
+    const [originSearch, brandSearch] = await Promise.all([
+      name ? searchManufacturingOrigin(name, brand) : Promise.resolve(null),
+      brand ? searchBrandOrigin(brand) : Promise.resolve(null),
+    ]);
+
+    const result = {};
+    if (originSearch) {
+      result.manufacturing = originSearch.origin;
+      result.manufacturingFromSearch = true;
+    }
+    if (brandSearch) {
+      result.brandOrigin = brandSearch.origin;
+      result.brandCompany = brandSearch.company;
+      result.brandFromSearch = true;
+    }
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`ScanOrigin API running on port ${PORT}`);
+});
