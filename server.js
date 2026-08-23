@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const https = require('https');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -119,7 +120,7 @@ async function lookupCodeLook(barcode) {
 
 // ── Web search for manufacturing origin ───────────────────────
 
-const DDG_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+const SEARCH_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 const MAJOR_CITIES = ['Atlanta','London','Berlin','Paris','Tokyo','New York','Chicago','Toronto','Sydney','Amsterdam','Madrid','Rome','Munich','Milan','Geneva','Zurich','Stockholm','Oslo','Copenhagen','Dublin','Vienna','Lisbon','Warsaw','Moscow','Seoul','Beijing','Mumbai','Sao Paulo','Mexico City','Istanbul','Athens','Brussels','Helsinki','Den Dolder','Amersfoort','Naples','Tiberias','Utrecht'];
 
@@ -133,32 +134,38 @@ function isValidCountry(c) {
     !FALSE_POSITIVES.includes(c) && !MAJOR_CITIES.includes(c);
 }
 
-function extractDDGSnippets(html) {
-  const snippets = [];
-  const regex = /class="result__snippet"[^>]*>(.*?)<\/a>/gs;
-  let match;
-  while ((match = regex.exec(html)) !== null) {
-    const text = match[1]
-      .replace(/<[^>]+>/g, '')
-      .replace(/&amp;/g, '&')
-      .replace(/&quot;/g, '"')
-      .replace(/&#x27;/g, "'")
-      .trim();
-    if (text.length > 10) snippets.push(text);
-  }
-  return snippets;
+function fetchSearchSnippets(query) {
+  return new Promise((resolve) => {
+    let data = '';
+    const url = `https://www.bing.com/search?q=${encodeURIComponent(query)}&setlang=en&cc=us`;
+    https.get(url, { headers: { 'User-Agent': SEARCH_UA, 'Accept': 'text/html' } }, (res) => {
+      res.on('data', (chunk) => data += chunk);
+      res.on('end', () => {
+        const snippets = [];
+        // Bing uses <p class="b_lineclamp2"> or <p class="b_lineclamp4"> for snippets
+        const regex = /<p class="b_lineclamp[24]">([^<]+)<\/p>/g;
+        let match;
+        while ((match = regex.exec(data)) !== null) {
+          const text = match[1]
+            .replace(/&#x27;/g, "'")
+            .replace(/&amp;/g, '&')
+            .replace(/&quot;/g, '"')
+            .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n)))
+            .trim();
+          if (text.length > 15) snippets.push(text);
+        }
+        resolve(snippets);
+      });
+      res.on('error', () => resolve([]));
+    }).on('error', () => resolve([]));
+  });
 }
 
 async function searchManufacturingOrigin(productName, brand) {
-  const query = encodeURIComponent(`${brand} ${productName} where is it made origin country`);
+  // Use quotes around brand to get better results
+  const query = `"${brand}" "made in" OR "manufactured in" OR "produced in" country`;
   try {
-    const resp = await fetch(`https://html.duckduckgo.com/html/?q=${query}`, {
-      headers: { 'User-Agent': DDG_UA },
-    });
-    if (!resp.ok) return null;
-    const html = await resp.text();
-    const snippets = extractDDGSnippets(html);
-
+    const snippets = await fetchSearchSnippets(query);
     const patterns = [
       /made\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
       /manufactured\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
@@ -168,7 +175,6 @@ async function searchManufacturingOrigin(productName, brand) {
       /from\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+by/i,
       /factory\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
       /plant\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
-      /headquartered\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
     ];
 
     for (const snippet of snippets) {
@@ -201,31 +207,33 @@ const NATIONALITY_MAP = {
 
 async function searchBrandOrigin(brand) {
   if (!brand || brand.length < 2) return null;
-  const query = encodeURIComponent(`${brand} company headquarters parent company country`);
+  const query = `"${brand}" "owned by" OR "subsidiary of" OR "parent company" OR "headquartered"`;
   try {
-    const resp = await fetch(`https://html.duckduckgo.com/html/?q=${query}`, {
-      headers: { 'User-Agent': DDG_UA },
-    });
-    if (!resp.ok) return null;
-    const html = await resp.text();
-    const snippets = extractDDGSnippets(html);
+    const snippets = await fetchSearchSnippets(query);
 
     let foundCompany = '';
 
-    // First pass: parent company / owned by
+    // First pass: look for parent company / owned by / created by / produced by / distributed by
     for (const snippet of snippets) {
-      const pm = snippet.match(/(?:subsidiary\s+of|owned\s+by|parent\s+company\s+(?:is\s+)?)\s+([A-Z][A-Za-z]+(?:[-\s][A-Z][A-Za-z]+)*)/);
-      if (pm && pm[1] && pm[1].trim().length > 2 && !['The','This','These','Many','Some'].includes(pm[1].trim())) {
-        foundCompany = pm[1].trim();
-        break;
+      const parentMatch = snippet.match(/(?:subsidiary\s+of|owned\s+by|parent\s+company\s+(?:is\s+)?|created\s+by|produced\s+(?:and\s+)?distributed\s+by|distributed\s+by|produced\s+by)\s+([A-Z][A-Za-z]+(?:[-\s][A-Z][A-Za-z]+)*)/);
+      if (parentMatch && parentMatch[1]) {
+        const co = parentMatch[1].trim();
+        if (co.length > 2 && !['The', 'This', 'These', 'Many', 'Some'].includes(co)) {
+          foundCompany = co;
+          break;
+        }
       }
     }
 
-    // Second pass: nationality patterns
+    // Second pass: look for nationality patterns (most reliable)
     for (const snippet of snippets) {
-      const nm = snippet.match(/\b(American|British|German|French|Italian|Spanish|Dutch|Belgian|Swiss|Swedish|Norwegian|Danish|Finnish|Polish|Irish|Portuguese|Austrian|Canadian|Australian|Japanese|Chinese|Korean|Indian|Brazilian|Mexican|Turkish|Greek|Russian)\b(?:[-\s]?(?:family[-\s]?)?(?:owned|multinational|brand|company|corporation|manufacturer))/);
-      if (nm && nm[1] && NATIONALITY_MAP[nm[1]]) {
-        return { origin: NATIONALITY_MAP[nm[1]], company: foundCompany || brand };
+      const natMatch = snippet.match(/\b(American|British|German|French|Italian|Spanish|Dutch|Belgian|Swiss|Swedish|Norwegian|Danish|Finnish|Polish|Irish|Portuguese|Austrian|Canadian|Australian|Japanese|Chinese|Korean|Indian|Brazilian|Mexican|Turkish|Greek|Russian)\b(?:[-\s]?(?:family[-\s]?)?(?:owned|multinational|brand|company|corporation|manufacturer|food|mayo|sauc|drinks?|products?))/i);
+      if (natMatch && natMatch[1]) {
+        const natKey = natMatch[1].charAt(0).toUpperCase() + natMatch[1].slice(1).toLowerCase();
+        const country = NATIONALITY_MAP[natKey];
+        if (country) {
+          return { origin: country, company: foundCompany || brand };
+        }
       }
     }
 
