@@ -211,9 +211,15 @@ async function fetchWikipediaData(brand) {
 
   // Extract parent/owner company — broadened patterns
   // Allow intervening lowercase descriptors (e.g. "sold by the multinational food corporation Nestlé")
+  // Exclude nationality adjectives (Italian, American, etc.) which match "brand of [adj] company" pattern
   const ownerMatch = extract.match(/(?:subsidiary\s+of|owned\s+by|sold\s+by|parent\s+company\s+(?:is\s+)?|brand\s+of|produced\s+by|manufactured\s+by|created\s+by|distributed\s+by)\s+(?:the\s+)?(?:[a-z]+\s+)*(?:[A-Z][a-z]+(?:\s+|,\s+))*([A-Z][A-Za-zéèêëàâäüöß]+(?:[\s\-&][A-Z][A-Za-zéèêëàâäüöß]+)*)/);
   if (ownerMatch && ownerMatch[1] && ownerMatch[1].trim().length > 2) {
-    result.owner = ownerMatch[1].trim();
+    const owner = ownerMatch[1].trim();
+    // Filter out nationality adjectives that slip through
+    const nationalities = ['Italian','American','British','German','French','Spanish','Dutch','Belgian','Swiss','Swedish','Norwegian','Danish','Finnish','Polish','Irish','Portuguese','Austrian','Canadian','Australian','Japanese','Chinese','Korean','Indian','Brazilian','Mexican','Turkish','Greek','Russian'];
+    if (!nationalities.includes(owner)) {
+      result.owner = owner;
+    }
   }
 
   // Extract founded year — broadened patterns
