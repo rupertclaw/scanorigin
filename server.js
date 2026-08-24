@@ -210,16 +210,19 @@ async function fetchWikipediaData(brand) {
   result.description = sentences.length > 20 ? sentences + '.' : '';
 
   // Extract parent/owner company — broadened patterns
-  const ownerMatch = extract.match(/(?:subsidiary\s+of|owned\s+by|sold\s+by|parent\s+company\s+(?:is\s+)?|brand\s+of|produced\s+by|manufactured\s+by|created\s+by|distributed\s+by)\s+(?:the\s+)?([A-Z][A-Za-z]+(?:[\s\-&][A-Z][A-Za-z]+)*)/);
+  // Allow intervening lowercase descriptors (e.g. "sold by the multinational food corporation Nestlé")
+  const ownerMatch = extract.match(/(?:subsidiary\s+of|owned\s+by|sold\s+by|parent\s+company\s+(?:is\s+)?|brand\s+of|produced\s+by|manufactured\s+by|created\s+by|distributed\s+by)\s+(?:the\s+)?(?:[a-z]+\s+)*(?:[A-Z][a-z]+(?:\s+|,\s+))*([A-Z][A-Za-zéèêëàâäüöß]+(?:[\s\-&][A-Z][A-Za-zéèêëàâäüöß]+)*)/);
   if (ownerMatch && ownerMatch[1] && ownerMatch[1].trim().length > 2) {
     result.owner = ownerMatch[1].trim();
   }
 
   // Extract founded year — broadened patterns
-  const foundedMatch = extract.match(/(?:founded|established|created|introduced|launched|started)\s+(?:in\s+)?(?:[A-Za-z]+\s+\d{1,2},\s+)?(\d{4})/);
+  // Handles: "founded in 1938", "introduced in Switzerland on April 1, 1938", "launched in 1900"
+  const foundedMatch = extract.match(/(?:founded|established|created|introduced|launched|started)[^.]*?\b(?:in\s+)?(?:[A-Za-z]+\s+\d{1,2},\s+)?(\d{4})\b/);
   if (foundedMatch) result.founded = foundedMatch[1];
 
   // Extract headquarters location — broadened patterns
+  // Handles: "headquartered in Geneva", "based in Switzerland", "introduced in Switzerland"
   const hqMatch = extract.match(/(?:headquartered|based|headquarters|founded|introduced|launched|started)\s+in\s+([A-Z][a-z]+(?:[\s,][A-Z][a-z]+)*)/);
   if (hqMatch && hqMatch[1]) {
     result.hq = hqMatch[1].replace(/,$/, '').trim();
