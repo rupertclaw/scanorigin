@@ -1065,6 +1065,16 @@ window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
   installBtn.classList.remove('hidden');
+  if (typeof gtag === 'function') {
+    gtag('event', 'install_prompt_shown', { 'event_category': 'engagement' });
+  }
+});
+
+window.addEventListener('appinstalled', () => {
+  installBtn.classList.add('hidden');
+  if (typeof gtag === 'function') {
+    gtag('event', 'install_completed', { 'event_category': 'engagement' });
+  }
 });
 
 installBtn.addEventListener('click', async () => {
@@ -1074,6 +1084,13 @@ installBtn.addEventListener('click', async () => {
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === 'accepted') {
       installBtn.classList.add('hidden');
+      if (typeof gtag === 'function') {
+        gtag('event', 'install_accepted', { 'event_category': 'engagement' });
+      }
+    } else {
+      if (typeof gtag === 'function') {
+        gtag('event', 'install_declined', { 'event_category': 'engagement' });
+      }
     }
     deferredPrompt = null;
   } else {
