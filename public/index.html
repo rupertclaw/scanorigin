@@ -16,7 +16,7 @@
   gtag('js', new Date());
   gtag('config', 'G-29827H2J1K');
 </script>
-<link rel="manifest" href="manifest.json">
+<link rel="manifest" href="manifest.json?v=14">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
@@ -75,7 +75,12 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:-a
 .product-name { font-size:18px; font-weight:600; margin-bottom:4px; line-height:1.3; }
 .product-brand { font-size:14px; color:var(--muted); margin-bottom:16px; }
 
-.info-row { display:flex; align-items:center; gap:12px; padding:12px 0; border-top:1px solid var(--border); }
+/* Section headers (like SCANada) */
+.detail-section { margin-top:16px; padding-top:16px; border-top:1px solid var(--border); }
+.detail-section:first-of-type { border-top:none; padding-top:0; margin-top:0; }
+.section-title { font-size:12px; color:var(--accent); text-transform:uppercase; letter-spacing:0.06em; font-weight:600; margin-bottom:10px; }
+
+.info-row { display:flex; align-items:center; gap:12px; padding:10px 0; border-top:1px solid var(--border); }
 .info-row:first-of-type { border-top:none; }
 .info-label { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; width:90px; flex-shrink:0; }
 .info-value { font-size:15px; font-weight:500; }
@@ -92,6 +97,56 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:-a
 .price-range { font-size:13px; color:var(--muted); }
 
 .product-image { width:100%; height:200px; object-fit:contain; border-radius:12px; background:#0d1117; margin-bottom:16px; }
+
+/* Company info card */
+.company-card { background:rgba(0,212,170,0.04); border:1px solid rgba(0,212,170,0.15); border-radius:12px; padding:14px; margin-bottom:4px; }
+.company-card .company-name { font-size:15px; font-weight:600; color:var(--accent); margin-bottom:4px; }
+.company-card .company-desc { font-size:13px; color:var(--text); line-height:1.5; }
+.company-meta { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.company-meta-item { font-size:11px; background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:3px 8px; color:var(--muted); }
+.company-meta-item strong { color:var(--text); }
+
+/* Badges */
+.badge-row { display:flex; flex-wrap:wrap; gap:6px; margin:4px 0; }
+.badge { font-size:11px; padding:3px 8px; border-radius:6px; font-weight:600; }
+.badge-vegan { background:rgba(0,200,83,0.15); color:#00c853; }
+.badge-vegetarian { background:rgba(0,200,83,0.1); color:#00c853; }
+.badge-palm-oil-free { background:rgba(0,212,170,0.15); color:var(--accent); }
+.badge-non-vegan { background:rgba(239,68,68,0.1); color:var(--danger); }
+.badge-organic { background:rgba(0,200,83,0.15); color:#00c853; }
+
+/* NutriScore badge */
+.nutriscore-badge { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:6px; font-weight:700; font-size:16px; color:#fff; }
+.nutriscore-a { background:#00843d; }
+.nutriscore-b { background:#7fba00; }
+.nutriscore-c { background:#ffc700; color:#333; }
+.nutriscore-d { background:#ff8a00; }
+.nutriscore-e { background:#e54335; }
+
+/* Nova group */
+.nova-badge { font-size:12px; padding:3px 8px; border-radius:6px; background:rgba(245,158,11,0.15); color:var(--warn); font-weight:600; }
+
+/* Nutrition grid */
+.nutrition-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+.nutrition-item { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:8px 10px; }
+.nutrition-item .nut-label { font-size:11px; color:var(--muted); text-transform:uppercase; }
+.nutrition-item .nut-value { font-size:14px; font-weight:600; }
+
+/* Ingredients */
+.ingredients-text { font-size:13px; line-height:1.5; color:var(--text); }
+
+/* Labels */
+.label-tag { display:inline-block; font-size:11px; padding:2px 8px; border-radius:4px; background:rgba(0,212,170,0.1); color:var(--accent); margin:2px; }
+
+/* Source links */
+.source-link { display:flex; align-items:center; gap:6px; padding:8px 0; font-size:13px; }
+.source-link a { color:var(--accent); text-decoration:none; }
+.source-link a:hover { text-decoration:underline; }
+.source-link .source-num { width:20px; height:20px; border-radius:50%; background:var(--border); color:var(--muted); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; flex-shrink:0; }
+
+/* Ownership chain */
+.ownership-chain { display:flex; align-items:center; flex-wrap:wrap; gap:4px; font-size:14px; }
+.ownership-chain .chain-arrow { color:var(--muted); font-size:12px; }
 
 .no-result { text-align:center; padding:40px 20px; color:var(--muted); }
 .no-result .emoji { font-size:48px; margin-bottom:12px; }
@@ -352,22 +407,42 @@ async function lookupProduct(barcode) {
   // Fallback: direct browser calls if Worker API fails
   // 1. Open Food Facts (free, food products)
   try {
-    const offResp = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`);
+    const offFields = 'product_name,generic_name,brands,brand_owner,image_front_url,image_url,quantity,countries,manufacturing_places,origins,ingredients_text,ingredients_analysis_tags,categories,nutriscore_grade,nova_group,nutriments,allergens,additives_tags,labels,labels_tags,stores,link';
+    const offResp = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=${offFields}`);
     if (offResp.ok) {
       const offData = await offResp.json();
       if (offData.status === 1 && offData.product) {
+        const p = offData.product;
+        const nutriments = p.nutriments || {};
         results.push({
           source: 'Open Food Facts',
-          name: offData.product.product_name || offData.product.generic_name || '',
-          brand: offData.product.brands || '',
-          image: offData.product.image_front_url || offData.product.image_url || '',
-          quantity: offData.product.quantity || '',
-          countries: offData.product.countries || '',
-          manufacturing: offData.product.manufacturing_places || '',
-          ingredients: offData.product.ingredients_text || '',
-          categories: offData.product.categories || '',
-          nutriscore: offData.product.nutriscore_grade || '',
-          sourceUrl: offData.product.link || `https://world.openfoodfacts.org/product/${barcode}`,
+          name: p.product_name || p.generic_name || '',
+          brand: p.brands || '',
+          brandOwner: p.brand_owner || '',
+          image: p.image_front_url || p.image_url || '',
+          quantity: p.quantity || '',
+          countries: p.countries || '',
+          manufacturing: p.manufacturing_places || '',
+          origins: p.origins || '',
+          ingredients: p.ingredients_text || '',
+          ingredientsAnalysis: p.ingredients_analysis_tags || [],
+          categories: p.categories || '',
+          nutriscore: p.nutriscore_grade || '',
+          novaGroup: p.nova_group || null,
+          nutriments: {
+            energy: nutriments['energy-kcal_100g'] || nutriments['energy_100g'] || null,
+            fat: nutriments['fat_100g'] || null,
+            saturatedFat: nutriments['saturated-fat_100g'] || null,
+            carbs: nutriments['carbohydrates_100g'] || null,
+            sugars: nutriments['sugars_100g'] || null,
+            fiber: nutriments['fiber_100g'] || null,
+            proteins: nutriments['proteins_100g'] || null,
+            salt: nutriments['salt_100g'] || null,
+          },
+          allergens: p.allergens || '',
+          labels: p.labels || '',
+          labelsTags: p.labels_tags || [],
+          sourceUrl: p.link || `https://world.openfoodfacts.org/product/${barcode}`,
         });
       }
     }
@@ -429,84 +504,211 @@ function renderResult(barcode, productData) {
 
   let html = '<div class="result-card">';
 
-  // Product image
+  // ── Product header ──
   if (primary.image) {
     html += `<img class="product-image" src="${escapeHtml(primary.image)}" alt="Product" onerror="this.style.display='none'">`;
   }
 
-  // Product name
   if (primary.name) {
     html += `<div class="product-name">${escapeHtml(primary.name)}</div>`;
   } else {
     html += `<div class="product-name">Unknown Product</div>`;
   }
 
-  // Brand
   if (primary.brand) {
     html += `<div class="product-brand">${escapeHtml(primary.brand)}</div>`;
   }
 
-  // Barcode
-  html += `<div class="info-row"><div class="info-label">Barcode</div><div class="info-value mono">${escapeHtml(barcode)}</div></div>`;
+  // Quantity
+  if (off && off.quantity) {
+    html += `<div class="product-brand">${escapeHtml(off.quantity)}</div>`;
+  }
 
-  // Country of origin (GS1) — be honest: this is barcode registration, not manufacturing
-  html += `<div class="info-row"><div class="info-label">Barcode Origin</div><div>`;
+  // ── Badges row ──
+  if (off && off.ingredientsAnalysis && off.ingredientsAnalysis.length > 0) {
+    html += '<div class="badge-row">';
+    for (const tag of off.ingredientsAnalysis) {
+      if (tag === 'en:vegan') html += '<span class="badge badge-vegan">🌱 Vegan</span>';
+      else if (tag === 'en:vegetarian') html += '<span class="badge badge-vegetarian">🥬 Vegetarian</span>';
+      else if (tag === 'en:palm-oil-free') html += '<span class="badge badge-palm-oil-free">🫒 Palm Oil Free</span>';
+      else if (tag === 'en:non-vegan') html += '<span class="badge badge-non-vegan">🍖 Non-Vegan</span>';
+      else if (tag === 'en:non-vegetarian') html += '<span class="badge badge-non-vegan">🍖 Non-Vegetarian</span>';
+    }
+    html += '</div>';
+  }
+
+  // NutriScore + Nova group
+  if (off && (off.nutriscore || off.novaGroup)) {
+    html += '<div class="badge-row">';
+    if (off.nutriscore && off.nutriscore !== 'unknown') {
+      const ns = off.nutriscore.toLowerCase();
+      const scoreLabels = { a: 'A (Best)', b: 'B (Good)', c: 'C (Fair)', d: 'D (Poor)', e: 'E (Worst)' };
+      html += `<span class="nutriscore-badge nutriscore-${ns}">${escapeHtml(off.nutriscore.toUpperCase())}</span>`;
+      html += `<span style="font-size:12px;color:var(--muted);align-self:center">${scoreLabels[ns] || ''}</span>`;
+    }
+    if (off.novaGroup) {
+      const novaLabels = { 1: 'Nova 1 (Unprocessed)', 2: 'Nova 2 (Processed culinary)', 3: 'Nova 3 (Processed)', 4: 'Nova 4 (Ultra-processed)' };
+      html += `<span class="nova-badge">${novaLabels[off.novaGroup] || 'Nova ' + off.novaGroup}</span>`;
+    }
+    html += '</div>';
+  }
+
+  // ── OWNERSHIP section ──
+  const hasOwnership = (off && (off.brandOrigin || off.brandCompany || off.wikiOwner || off.wikiDescription || off.wikiHq || off.wikiFounded)) || (primary.brand);
+  if (hasOwnership) {
+    html += '<div class="detail-section">';
+    html += '<div class="section-title">🏢 Ownership</div>';
+
+    // Company card with Wikipedia description
+    if (off && off.wikiDescription) {
+      html += '<div class="company-card">';
+      const companyName = off.brandCompany || off.wikiOwner || off.brand || primary.brand || '';
+      if (companyName) html += `<div class="company-name">${escapeHtml(companyName)}</div>`;
+      html += `<div class="company-desc">${escapeHtml(off.wikiDescription)}</div>`;
+      if (off.wikiFounded || off.wikiHq || off.brandOrigin) {
+        html += '<div class="company-meta">';
+        if (off.wikiFounded) html += `<span class="company-meta-item">Founded <strong>${escapeHtml(String(off.wikiFounded))}</strong></span>`;
+        if (off.wikiHq) html += `<span class="company-meta-item">HQ <strong>${escapeHtml(off.wikiHq)}</strong></span>`;
+        if (off.brandOrigin && off.brandOrigin !== off.wikiHq) html += `<span class="company-meta-item">From <strong>${escapeHtml(off.brandOrigin)}</strong></span>`;
+        html += '</div>';
+      }
+      html += '</div>';
+    } else if (off && off.brandOrigin) {
+      // Fallback: just show brand origin
+      const companyLabel = off.brandCompany && off.brandCompany !== off.brand
+        ? `${escapeHtml(off.brand)} → ${escapeHtml(off.brandCompany)}`
+        : escapeHtml(off.brand);
+      html += `<div class="info-row"><div class="info-label">Brand From</div><div>`;
+      html += `<div class="info-value">${escapeHtml(off.brandOrigin)}</div>`;
+      html += `<span style="color:var(--muted);font-size:11px">${companyLabel} (web search)</span>`;
+      html += `</div></div>`;
+    } else if (primary.brand) {
+      html += `<div class="info-row"><div class="info-label">Brand</div><div class="info-value">${escapeHtml(primary.brand)}</div></div>`;
+    }
+
+    // Ownership chain (brand → parent company)
+    if (off && off.brandCompany && off.brandCompany !== off.brand) {
+      html += `<div class="info-row"><div class="info-label">Parent</div><div class="ownership-chain">`;
+      html += `<span>${escapeHtml(off.brand)}</span><span class="chain-arrow">→</span><span style="color:var(--accent)">${escapeHtml(off.brandCompany)}</span>`;
+      html += `</div></div>`;
+    } else if (off && off.wikiOwner && off.wikiOwner !== off.brand) {
+      html += `<div class="info-row"><div class="info-label">Owner</div><div class="info-value" style="color:var(--accent)">${escapeHtml(off.wikiOwner)}</div></div>`;
+    }
+
+    html += '</div>';
+  }
+
+  // ── ORIGIN section ──
+  html += '<div class="detail-section">';
+  html += '<div class="section-title">🌍 Origin</div>';
+
+  // Barcode origin (GS1)
+  html += `<div class="info-row"><div class="info-label">Barcode</div><div>`;
   html += `<span class="country-flag">${gs1.flag}</span><span class="country-name">${escapeHtml(gs1.country)}</span>`;
   html += `<div class="origin-confidence confidence-${confidence.level}">${confidence.label}</div>`;
   html += `</div></div>`;
 
-  // Brand/parent company headquarters (from web search)
-  if (off && off.brandOrigin) {
-    const companyLabel = off.brandCompany && off.brandCompany !== off.brand 
-      ? `${escapeHtml(off.brand)} → ${escapeHtml(off.brandCompany)}` 
-      : escapeHtml(off.brand);
-    html += `<div class="info-row"><div class="info-label">Brand From</div><div>`;
-    html += `<div class="info-value">${escapeHtml(off.brandOrigin)}</div>`;
-    html += `<span style="color:var(--muted);font-size:11px">${companyLabel} (web search)</span>`;
-    html += `</div></div>`;
-  }
-
-  // Manufacturing places (from OFF if available)
+  // Manufacturing places
   if (off && off.manufacturing) {
-    const originLabel = off.originFromSearch ? 'Likely Made In' : 'Made In';
-    const originNote = off.originFromSearch ? ' (from web search)' : '';
+    const originLabel = off.brandFromSearch ? 'Likely Made In' : 'Made In';
+    const originNote = off.brandFromSearch ? ' (from web search)' : '';
     html += `<div class="info-row"><div class="info-label">${escapeHtml(originLabel)}</div><div>`;
     html += `<div class="info-value">${escapeHtml(off.manufacturing)}${originNote ? `<span style="color:var(--muted);font-size:11px">${escapeHtml(originNote)}</span>` : ''}</div>`;
     html += `</div></div>`;
   }
 
-  // Countries where sold (from OFF)
+  // Raw ingredients origin
+  if (off && off.origins) {
+    html += `<div class="info-row"><div class="info-label">Ingredients From</div><div class="info-value">${escapeHtml(off.origins)}</div></div>`;
+  }
+
+  // Countries where sold
   if (off && off.countries) {
     html += `<div class="info-row"><div class="info-label">Sold In</div><div class="info-value">${escapeHtml(off.countries)}</div></div>`;
   }
 
-  // Category
+  html += '</div>';
+
+  // ── NUTRITION section ──
+  if (off && off.nutriments) {
+    const n = off.nutriments;
+    const hasNutrition = n.energy || n.fat || n.carbs || n.proteins || n.salt;
+    if (hasNutrition) {
+      html += '<div class="detail-section">';
+      html += '<div class="section-title">📊 Nutrition (per 100g)</div>';
+      html += '<div class="nutrition-grid">';
+      if (n.energy) html += `<div class="nutrition-item"><div class="nut-label">Energy</div><div class="nut-value">${n.energy} kcal</div></div>`;
+      if (n.fat) html += `<div class="nutrition-item"><div class="nut-label">Fat</div><div class="nut-value">${n.fat}g</div></div>`;
+      if (n.saturatedFat) html += `<div class="nutrition-item"><div class="nut-label">Saturated</div><div class="nut-value">${n.saturatedFat}g</div></div>`;
+      if (n.carbs) html += `<div class="nutrition-item"><div class="nut-label">Carbs</div><div class="nut-value">${n.carbs}g</div></div>`;
+      if (n.sugars) html += `<div class="nutrition-item"><div class="nut-label">Sugars</div><div class="nut-value">${n.sugars}g</div></div>`;
+      if (n.fiber) html += `<div class="nutrition-item"><div class="nut-label">Fiber</div><div class="nut-value">${n.fiber}g</div></div>`;
+      if (n.proteins) html += `<div class="nutrition-item"><div class="nut-label">Protein</div><div class="nut-value">${n.proteins}g</div></div>`;
+      if (n.salt) html += `<div class="nutrition-item"><div class="nut-label">Salt</div><div class="nut-value">${n.salt}g</div></div>`;
+      html += '</div>';
+      html += '</div>';
+    }
+  }
+
+  // ── INGREDIENTS section ──
+  if (off && off.ingredients) {
+    html += '<div class="detail-section">';
+    html += '<div class="section-title">🧪 Ingredients</div>';
+    const ing = off.ingredients.substring(0, 300);
+    html += `<div class="ingredients-text">${escapeHtml(ing)}${off.ingredients.length > 300 ? '...' : ''}</div>`;
+    html += '</div>';
+  }
+
+  // ── LABELS section ──
+  if (off && off.labels && off.labels.length > 0) {
+    const labelParts = off.labels.split(',').map(s => s.trim()).filter(Boolean).slice(0, 8);
+    if (labelParts.length > 0) {
+      html += '<div class="detail-section">';
+      html += '<div class="section-title">🏷️ Labels</div>';
+      html += '<div>';
+      for (const label of labelParts) {
+        html += `<span class="label-tag">${escapeHtml(label)}</span>`;
+      }
+      html += '</div>';
+      html += '</div>';
+    }
+  }
+
+  // ── ALLERGENS section ──
+  if (off && off.allergens && off.allergens.length > 0) {
+    const allergenParts = off.allergens.split(',').map(s => s.trim()).filter(Boolean);
+    if (allergenParts.length > 0) {
+      html += '<div class="detail-section">';
+      html += '<div class="section-title">⚠️ Allergens</div>';
+      html += `<div class="ingredients-text">${escapeHtml(allergenParts.join(', '))}</div>`;
+      html += '</div>';
+    }
+  }
+
+  // ── PRODUCT DETAILS section ──
+  html += '<div class="detail-section">';
+  html += '<div class="section-title">📋 Details</div>';
+  html += `<div class="info-row"><div class="info-label">Barcode</div><div class="info-value mono">${escapeHtml(barcode)}</div></div>`;
   if (primary.category) {
     html += `<div class="info-row"><div class="info-label">Category</div><div class="info-value">${escapeHtml(primary.category)}</div></div>`;
   } else if (off && off.categories) {
     html += `<div class="info-row"><div class="info-label">Category</div><div class="info-value">${escapeHtml(off.categories)}</div></div>`;
   }
-
-  // Description (from UPCitemdb, CodeLook, or DuckDuckGo)
   if (primary.description && !off) {
     html += `<div class="info-row"><div class="info-label">Details</div><div class="info-value" style="font-size:14px">${escapeHtml(primary.description)}</div></div>`;
   }
+  html += '</div>';
 
-  // NutriScore (food only)
-  if (off && off.nutriscore) {
-    const scoreColors = { a: '#00843d', b: '#7fba00', c: '#ffc700', d: '#ff8a00', e: '#e54335' };
-    const scoreColor = scoreColors[off.nutriscore] || '#666';
-    html += `<div class="info-row"><div class="info-label">NutriScore</div><div class="info-value" style="text-transform:uppercase;font-weight:700;color:${scoreColor}">${escapeHtml(off.nutriscore)}</div></div>`;
-  }
-
-  // Price offers (from UPCitemdb)
+  // ── PRICE section ──
   if (upc && upc.offers && upc.offers.length > 0) {
     const prices = upc.offers.map(o => parseFloat(o.price)).filter(p => !isNaN(p));
     if (prices.length > 0) {
+      html += '<div class="detail-section">';
+      html += '<div class="section-title">💲 Price</div>';
       const min = Math.min(...prices);
       const max = Math.max(...prices);
       const avg = (prices.reduce((a,b) => a+b, 0) / prices.length).toFixed(2);
-      html += `<div class="info-row"><div class="info-label">Price</div><div>`;
+      html += `<div class="info-row"><div class="info-label">Range</div><div>`;
       if (min === max) {
         html += `<span class="price-tag">$${min.toFixed(2)}</span>`;
       } else {
@@ -514,28 +716,36 @@ function renderResult(barcode, productData) {
         html += `<div class="price-range">avg $${avg} · ${prices.length} retailer${prices.length>1?'s':''}</div>`;
       }
       html += `</div></div>`;
+      html += '</div>';
     }
   }
 
-  // Ingredients (food only, collapsible)
-  if (off && off.ingredients) {
-    const ing = off.ingredients.substring(0, 200);
-    html += `<div class="info-row"><div class="info-label">Ingredients</div><div class="info-value" style="font-size:13px;font-weight:400;line-height:1.4">${escapeHtml(ing)}${off.ingredients.length > 200 ? '...' : ''}</div></div>`;
-  }
-
-  // Source links
-  html += `<div class="info-row"><div class="info-label">Sources</div><div class="info-value" style="font-size:13px">`;
+  // ── SOURCES section ──
+  html += '<div class="detail-section">';
+  html += '<div class="section-title">📚 Sources</div>';
   const sourceLinks = [];
-  if (off) sourceLinks.push(`<a href="${escapeHtml(off.sourceUrl)}" target="_blank" style="color:var(--accent)">Open Food Facts</a>`);
-  if (upc) sourceLinks.push(`<a href="${escapeHtml(upc.sourceUrl)}" target="_blank" style="color:var(--accent)">UPCitemdb</a>`);
-  if (cl) sourceLinks.push(`<a href="${escapeHtml(cl.sourceUrl)}" target="_blank" style="color:var(--accent)">CodeLook</a>`);
-  if (ddg) sourceLinks.push(`<a href="${escapeHtml(ddg.sourceUrl)}" target="_blank" style="color:var(--accent)">DuckDuckGo</a>`);
-  if (sourceLinks.length > 0) {
-    html += sourceLinks.join(' · ');
-  } else {
-    html += `<span style="color:var(--muted)">GS1 prefix only</span>`;
+  let sourceNum = 1;
+  if (off) {
+    sourceLinks.push(`<div class="source-link"><span class="source-num">${sourceNum++}</span><a href="${escapeHtml(off.sourceUrl)}" target="_blank">Open Food Facts</a></div>`);
   }
-  html += `</div></div>`;
+  if (off && off.wikiUrl) {
+    sourceLinks.push(`<div class="source-link"><span class="source-num">${sourceNum++}</span><a href="${escapeHtml(off.wikiUrl)}" target="_blank">Wikipedia</a></div>`);
+  }
+  if (upc) {
+    sourceLinks.push(`<div class="source-link"><span class="source-num">${sourceNum++}</span><a href="${escapeHtml(upc.sourceUrl)}" target="_blank">UPCitemdb</a></div>`);
+  }
+  if (cl) {
+    sourceLinks.push(`<div class="source-link"><span class="source-num">${sourceNum++}</span><a href="${escapeHtml(cl.sourceUrl)}" target="_blank">CodeLook</a></div>`);
+  }
+  if (ddg) {
+    sourceLinks.push(`<div class="source-link"><span class="source-num">${sourceNum++}</span><a href="${escapeHtml(ddg.sourceUrl)}" target="_blank">DuckDuckGo</a></div>`);
+  }
+  if (sourceLinks.length > 0) {
+    html += sourceLinks.join('');
+  } else {
+    html += `<span style="color:var(--muted);font-size:13px">GS1 prefix only</span>`;
+  }
+  html += '</div>';
 
   html += '</div>';
 
