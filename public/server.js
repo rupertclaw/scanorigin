@@ -209,18 +209,18 @@ async function fetchWikipediaData(brand) {
   const sentences = extract.split('. ').slice(0, 3).join('. ');
   result.description = sentences.length > 20 ? sentences + '.' : '';
 
-  // Extract parent/owner company
-  const ownerMatch = extract.match(/(?:subsidiary\s+of|owned\s+by|parent\s+company\s+(?:is\s+)?|brand\s+of)\s+([A-Z][A-Za-z]+(?:[\s\-&][A-Z][A-Za-z]+)*)/);
+  // Extract parent/owner company — broadened patterns
+  const ownerMatch = extract.match(/(?:subsidiary\s+of|owned\s+by|sold\s+by|parent\s+company\s+(?:is\s+)?|brand\s+of|produced\s+by|manufactured\s+by|created\s+by|distributed\s+by)\s+(?:the\s+)?([A-Z][A-Za-z]+(?:[\s\-&][A-Z][A-Za-z]+)*)/);
   if (ownerMatch && ownerMatch[1] && ownerMatch[1].trim().length > 2) {
     result.owner = ownerMatch[1].trim();
   }
 
-  // Extract founded year
-  const foundedMatch = extract.match(/(?:founded|established|created)\s+(?:in\s+)?(\d{4})/);
+  // Extract founded year — broadened patterns
+  const foundedMatch = extract.match(/(?:founded|established|created|introduced|launched|started)\s+(?:in\s+)?(?:[A-Za-z]+\s+\d{1,2},\s+)?(\d{4})/);
   if (foundedMatch) result.founded = foundedMatch[1];
 
-  // Extract headquarters location
-  const hqMatch = extract.match(/(?:headquartered|based|headquarters)\s+in\s+([A-Z][a-z]+(?:[\s,][A-Z][a-z]+)*)/);
+  // Extract headquarters location — broadened patterns
+  const hqMatch = extract.match(/(?:headquartered|based|headquarters|founded|introduced|launched|started)\s+in\s+([A-Z][a-z]+(?:[\s,][A-Z][a-z]+)*)/);
   if (hqMatch && hqMatch[1]) {
     result.hq = hqMatch[1].replace(/,$/, '').trim();
   }
