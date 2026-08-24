@@ -1003,6 +1003,14 @@ async function processBarcode(barcode) {
 
   showLoading(barcode);
 
+  // Track scan event in GA4
+  if (typeof gtag === 'function') {
+    gtag('event', 'scan', {
+      'event_category': 'engagement',
+      'event_label': barcode,
+    });
+  }
+
   try {
     const productData = await lookupProduct(barcode);
     if (productData.length > 0) {
