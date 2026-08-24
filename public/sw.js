@@ -1,5 +1,5 @@
 // ScanOrigin Service Worker
-const CACHE_NAME = "scanorigin-v3";
+const CACHE_NAME = "scanorigin-v4";
 const ASSETS = [
   "./",
   "./index.html",
@@ -25,16 +25,26 @@ self.addEventListener("activate", (e) => {
 });
 
 self.addEventListener("fetch", (e) => {
-  // Network-first for API calls, cache-first for static assets
   const url = new URL(e.request.url);
-  if (url.pathname.startsWith("/api/")) {
-    e.respondWith(fetch(e.request));
+  
+  // Network-first for API calls and HTML documents (always get latest code)
+  if (url.pathname.startsWith("/api/") || e.request.mode === "navigate" || url.pathname.endsWith(".html") || url.pathname === "/scanorigin/" || url.pathname === "/scanorigin") {
+    e.respondWith(
+      fetch(e.request).then((resp) => {
+        if (resp.ok && e.request.method === "GET") {
+          const clone = resp.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
+        }
+        return resp;
+      }).catch(() => caches.match(e.request))
+    );
     return;
   }
+  
+  // Cache-first for static assets (icons, images)
   e.respondWith(
     caches.match(e.request).then((cached) => {
       return cached || fetch(e.request).then((resp) => {
-        // Cache successful responses for static assets
         if (resp.ok && e.request.method === "GET") {
           const clone = resp.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
