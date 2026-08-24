@@ -222,8 +222,8 @@ async function fetchWikipediaData(brand) {
   if (foundedMatch) result.founded = foundedMatch[1];
 
   // Extract headquarters location — broadened patterns
-  // Handles: "headquartered in Geneva", "based in Switzerland", "introduced in Switzerland"
-  const hqMatch = extract.match(/(?:headquartered|based|headquarters|founded|introduced|launched|started)\s+in\s+([A-Z][a-z]+(?:[\s,][A-Z][a-z]+)*)/);
+  // Handles: "headquartered in Geneva", "based in Switzerland", "introduced their flagship coffee brand in Switzerland"
+  const hqMatch = extract.match(/(?:headquartered|based|headquarters|founded|introduced|launched|started)[^.]*?\bin\s+([A-Z][a-z]+(?:[\s,][A-Z][a-z]+)*)/);
   if (hqMatch && hqMatch[1]) {
     result.hq = hqMatch[1].replace(/,$/, '').trim();
   }
