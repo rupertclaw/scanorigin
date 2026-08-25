@@ -207,6 +207,8 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:-a
     <button onclick="lookupManual()">Look Up</button>
   </div>
 
+  <!-- iOS debug panel removed for production -->
+
   <div style="text-align:center; padding:8px 0 4px;">
     <a href="https://www.facebook.com/share/1K4HP63sMy/" target="_blank" rel="noopener" aria-label="Facebook" style="display:inline-block;">
       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -812,6 +814,14 @@ let scanning = false;
 
 async function startScanning() {
   if (scanning) return;
+
+  // Detect in-app browsers (Facebook, Instagram, LinkedIn, etc.) — they block camera access
+  const inAppBrowser = /FBAN|FBAV|Instagram|LinkedInApp|Snapchat|Twitter|TikTok/i.test(navigator.userAgent);
+  if (inAppBrowser) {
+    showError('This browser blocks camera access. Tap the menu icon (⋮) at the top right and choose "Open in external browser" to scan barcodes.');
+    return;
+  }
+
   try {
     document.getElementById('startBtn').style.display = 'none';
     document.getElementById('stopBtn').style.display = 'flex';
@@ -820,17 +830,30 @@ async function startScanning() {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const hasBarcodeDetector = 'BarcodeDetector' in window;
 
-    // Use native BarcodeDetector only on non-iOS browsers that support it
-    if (hasBarcodeDetector && !isIOS) {
+    // Debug panel for iOS diagnostics
+    const dbg = document.getElementById('iosDebug');
+    if (dbg) {
+      dbg.style.display = 'block';
+      dbg.innerHTML = `Browser: ${navigator.userAgent.substring(0,60)}<br>iOS=${isIOS}, BD=${hasBarcodeDetector}<br>HTTPS=${location.protocol === 'https:'}<br>mediaDevices=${!!navigator.mediaDevices}<br>`;
+    }
+
+    // Use native BarcodeDetector when available (iOS 18.4+, Chrome, Edge)
+    if (hasBarcodeDetector) {
+      if (dbg) dbg.innerHTML += '→ Using native BarcodeDetector<br>';
       await startNativeScanner();
       return;
     }
 
     // Fallback to html5-qrcode (iOS Safari, Firefox, older browsers)
+    if (dbg) dbg.innerHTML += '→ Using html5-qrcode fallback<br>';
     await startHtml5Scanner();
+    if (dbg) dbg.innerHTML += '→ html5-qrcode started OK<br>';
 
   } catch (err) {
     console.error('Scanner start error:', err);
+    const dbg = document.getElementById('iosDebug');
+    if (dbg) dbg.innerHTML += `→ ERROR: ${err.name || 'unknown'}: ${err.message || 'no message'}<br>`;
+    if (dbg && err.stack) dbg.innerHTML += `→ Stack: ${String(err.stack).substring(0, 120)}<br>`;
     let msg = 'Could not access camera. Make sure you are on HTTPS and have granted camera permissions.';
     if (err.name === 'NotAllowedError') {
       msg = 'Camera access denied. Go to Settings → Safari → Camera and allow access for this website.';
@@ -928,47 +951,60 @@ async function startNativeScanner() {
 
 // html5-qrcode fallback (Safari iOS, Firefox, older browsers)
 async function startHtml5Scanner() {
-  // html5-qrcode needs its own container, so we use it differently
-  // We'll hide the video element and let html5-qrcode create its own
-  document.getElementById('video').style.display = 'none';
+  const dbg = document.getElementById('iosDebug');
 
-  // Hide overlay while html5-qrcode runs (it has its own UI)
-  document.querySelector('.scan-overlay').style.display = 'none';
+  // Hide native scanner elements (null-safe)
+  const vid = document.getElementById('video');
+  if (vid) vid.style.display = 'none';
+  const overlay = document.querySelector('.scan-overlay');
+  if (overlay) overlay.style.display = 'none';
 
-  html5Qr = new Html5Qrcode('scannerWrap', {
-    experimentalFeatures: { useBarCodeDetectorIfSupported: false },
-    verbose: false,
+  // Create a clean dedicated container for html5-qrcode
+  const wrap = document.getElementById('scannerWrap');
+  const h5container = document.createElement('div');
+  h5container.id = 'html5qr-container';
+  h5container.style.cssText = 'width:100%; aspect-ratio:1.333; max-height:380px; background:#000; position:relative;';
+  wrap.appendChild(h5container);
+
+  if (dbg) dbg.innerHTML += '→ Creating Html5Qrcode instance<br>';
+  html5Qr = new Html5Qrcode('html5qr-container', {
+    experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+    verbose: true,
   });
 
+  // Fixed qrbox — small enough to fit any phone screen, wide for EAN barcodes
+  // EAN-13 barcodes are ~1.5cm tall x 3.7cm wide, so wide+short scan box
   const config = {
-    fps: 10,
-    qrbox: { width: 250, height: 180 },
+    fps: 15,
+    qrbox: { width: 250, height: 120 },
     aspectRatio: 1.333,
     formatsToSupport: [
       Html5QrcodeSupportedFormats.EAN_13,
       Html5QrcodeSupportedFormats.EAN_8,
       Html5QrcodeSupportedFormats.UPC_A,
       Html5QrcodeSupportedFormats.UPC_E,
-      Html5QrcodeSupportedFormats.CODE_128,
-      Html5QrcodeSupportedFormats.CODE_39,
     ],
   };
 
-  // Require multiple consecutive reads to prevent false positives
   let lastRead = null;
   let readCount = 0;
-  const REQUIRED = 3;
+  const REQUIRED = 2;
+
+  if (dbg) dbg.innerHTML += '→ Calling html5Qr.start()<br>';
+
+  // Minimal constraints — iOS Safari chokes on explicit resolution requests
+  const videoConstraints = { facingMode: 'environment' };
 
   await html5Qr.start(
-    { facingMode: 'environment' },
+    videoConstraints,
     config,
     (decodedText) => {
-      // Validate: digits only, reasonable length
       if (!/^\d{8,14}$/.test(decodedText)) {
         lastRead = null;
         readCount = 0;
         return;
       }
+      if (dbg) dbg.innerHTML += `→ Read: ${decodedText} (count ${readCount + 1})<br>`;
       if (decodedText === lastRead) {
         readCount++;
       } else {
@@ -980,9 +1016,15 @@ async function startHtml5Scanner() {
         processBarcode(decodedText);
       }
     },
-    (err) => { /* per-frame failure, ignore */ }
+    (err) => {
+      if (dbg && !dbg.dataset.errLogged) {
+        dbg.innerHTML += `→ Frame err: ${String(err).substring(0, 80)}<br>`;
+        dbg.dataset.errLogged = '1';
+      }
+    }
   );
   scanning = true;
+  if (dbg) dbg.innerHTML += '→ html5-qrcode started OK<br>';
 }
 
 function stopScanning() {
@@ -990,7 +1032,7 @@ function stopScanning() {
 
   // Stop native
   const video = document.getElementById('video');
-  if (video.srcObject) {
+  if (video && video.srcObject) {
     video.srcObject.getTracks().forEach(t => t.stop());
     video.srcObject = null;
   }
@@ -1000,12 +1042,20 @@ function stopScanning() {
     html5Qr.stop().then(() => {
       html5Qr.clear();
       html5Qr = null;
-      document.getElementById('video').style.display = 'block';
-      document.querySelector('.scan-overlay').style.display = 'block';
+      const vid = document.getElementById('video');
+      if (vid) vid.style.display = 'block';
+      const overlay = document.querySelector('.scan-overlay');
+      if (overlay) overlay.style.display = 'block';
+      const hc = document.getElementById('html5qr-container');
+      if (hc) hc.remove();
     }).catch(() => {
       html5Qr = null;
-      document.getElementById('video').style.display = 'block';
-      document.querySelector('.scan-overlay').style.display = 'block';
+      const vid = document.getElementById('video');
+      if (vid) vid.style.display = 'block';
+      const overlay = document.querySelector('.scan-overlay');
+      if (overlay) overlay.style.display = 'block';
+      const hc = document.getElementById('html5qr-container');
+      if (hc) hc.remove();
     });
   }
 
