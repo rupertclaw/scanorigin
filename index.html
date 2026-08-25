@@ -29,16 +29,17 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:-a
 /* Header */
 .header { padding:8px 12px; display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--bg); z-index:10; }
 .header-logo { width:48px; height:48px; border-radius:10px; flex-shrink:0; object-fit:cover; }
-.header-text { flex:1; min-width:0; padding-right:86px; }
+.header-text { flex:1; min-width:0; }
+.header-right { display:flex; flex-direction:column; align-items:center; gap:4px; flex-shrink:0; }
 .header h1 { font-size:20px; font-weight:700; letter-spacing:-0.02em; }
 .header h1 span { color:var(--accent); }
 .header .subtitle { font-size:9px; color:var(--muted); margin-top:1px; }
-.install-btn { display:flex; align-items:center; gap:5px; padding:8px 14px; background:var(--accent); color:#000; border:none; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; flex-shrink:0; transition:opacity .15s, transform .1s; position:absolute; top:12px; right:12px; z-index:11; }
+.install-btn { display:flex; align-items:center; gap:5px; padding:6px 12px; background:var(--accent); color:#000; border:none; border-radius:10px; font-size:12px; font-weight:700; cursor:pointer; transition:opacity .15s, transform .1s; }
 .install-btn:active { transform:scale(0.95); }
 .install-btn.hidden { display:none; }
-.donate-link { position:absolute; top:48px; right:8px; width:72px; height:72px; z-index:11; flex-shrink:0; transition:transform .1s; }
+.donate-link { width:56px; height:56px; z-index:11; flex-shrink:0; transition:transform .1s; display:block; }
 .donate-link:active { transform:scale(0.92); }
-.donate-link img { width:72px; height:72px; }
+.donate-link img { width:56px; height:56px; }
 
 /* Controls */
 .controls { padding:8px 12px 6px; display:flex; gap:8px; }
@@ -172,16 +173,18 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:-a
 </head>
 <body>
 <div id="app">
-  <a href="https://buy.stripe.com/00w7sM7DB2T7ayu6Xqe3e01" target="_blank" rel="noopener" class="donate-link" aria-label="Donate Now">
-    <img src="donate.png" alt="Donate Now">
-  </a>
   <div class="header">
     <img src="logo.png" alt="ScanOrigin" class="header-logo">
     <div class="header-text">
       <h1>Scan<span>Origin</span></h1>
       <div class="subtitle">Barcode scanner · country of origin</div>
     </div>
-    <button class="install-btn" id="installBtn">📲 Install</button>
+    <div class="header-right">
+      <button class="install-btn" id="installBtn">📲 Install</button>
+      <a href="https://buy.stripe.com/00w7sM7DB2T7ayu6Xqe3e01" target="_blank" rel="noopener" class="donate-link" aria-label="Donate Now">
+        <img src="donate.png" alt="Donate Now">
+      </a>
+    </div>
   </div>
 
   <div class="controls">
