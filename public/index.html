@@ -207,6 +207,8 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:-a
     <button onclick="lookupManual()">Look Up</button>
   </div>
 
+  <div id="iosDebug" style="display:none; padding:8px 12px; background:#1a1a2e; border:1px solid #444; border-radius:8px; margin:4px 12px; font-size:11px; color:#0f0; font-family:monospace; line-height:1.5; max-height:200px; overflow-y:auto;"></div>
+
   <div style="text-align:center; padding:8px 0 4px;">
     <a href="https://www.facebook.com/share/1K4HP63sMy/" target="_blank" rel="noopener" aria-label="Facebook" style="display:inline-block;">
       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -820,17 +822,29 @@ async function startScanning() {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const hasBarcodeDetector = 'BarcodeDetector' in window;
 
+    // Debug panel for iOS diagnostics
+    const dbg = document.getElementById('iosDebug');
+    if (dbg) {
+      dbg.style.display = 'block';
+      dbg.innerHTML = `Browser: ${navigator.userAgent.substring(0,60)}<br>iOS=${isIOS}, BD=${hasBarcodeDetector}<br>HTTPS=${location.protocol === 'https:'}<br>mediaDevices=${!!navigator.mediaDevices}<br>`;
+    }
+
     // Use native BarcodeDetector only on non-iOS browsers that support it
     if (hasBarcodeDetector && !isIOS) {
+      if (dbg) dbg.innerHTML += '→ Using native BarcodeDetector<br>';
       await startNativeScanner();
       return;
     }
 
     // Fallback to html5-qrcode (iOS Safari, Firefox, older browsers)
+    if (dbg) dbg.innerHTML += '→ Using html5-qrcode fallback<br>';
     await startHtml5Scanner();
+    if (dbg) dbg.innerHTML += '→ html5-qrcode started OK<br>';
 
   } catch (err) {
     console.error('Scanner start error:', err);
+    const dbg = document.getElementById('iosDebug');
+    if (dbg) dbg.innerHTML += `→ ERROR: ${err.name}: ${err.message}<br>`;
     let msg = 'Could not access camera. Make sure you are on HTTPS and have granted camera permissions.';
     if (err.name === 'NotAllowedError') {
       msg = 'Camera access denied. Go to Settings → Safari → Camera and allow access for this website.';
@@ -928,6 +942,7 @@ async function startNativeScanner() {
 
 // html5-qrcode fallback (Safari iOS, Firefox, older browsers)
 async function startHtml5Scanner() {
+  const dbg = document.getElementById('iosDebug');
   // html5-qrcode needs its own container, so we use it differently
   // We'll hide the video element and let html5-qrcode create its own
   document.getElementById('video').style.display = 'none';
@@ -935,6 +950,7 @@ async function startHtml5Scanner() {
   // Hide overlay while html5-qrcode runs (it has its own UI)
   document.querySelector('.scan-overlay').style.display = 'none';
 
+  if (dbg) dbg.innerHTML += '→ Creating Html5Qrcode instance<br>';
   html5Qr = new Html5Qrcode('scannerWrap', {
     experimentalFeatures: { useBarCodeDetectorIfSupported: false },
     verbose: false,
@@ -959,6 +975,7 @@ async function startHtml5Scanner() {
   let readCount = 0;
   const REQUIRED = 3;
 
+  if (dbg) dbg.innerHTML += '→ Calling html5Qr.start()<br>';
   await html5Qr.start(
     { facingMode: 'environment' },
     config,
