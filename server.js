@@ -540,9 +540,10 @@ app.get('/api/enrich', async (req, res) => {
     return res.status(400).json({ error: 'Missing name or brand' });
   }
   try {
-    const [originSearch, brandSearch] = await Promise.all([
+    const [originSearch, brandSearch, wikiData] = await Promise.all([
       name ? searchManufacturingOrigin(name, brand) : Promise.resolve(null),
       brand ? searchBrandOrigin(brand) : Promise.resolve(null),
+      brand ? fetchWikipediaData(brand) : Promise.resolve(null),
     ]);
 
     const result = {};
@@ -554,6 +555,13 @@ app.get('/api/enrich', async (req, res) => {
       result.brandOrigin = brandSearch.origin;
       result.brandCompany = brandSearch.company;
       result.brandFromSearch = true;
+    }
+    if (wikiData) {
+      result.wikiDescription = wikiData.description || '';
+      result.wikiUrl = wikiData.url || '';
+      result.wikiOwner = wikiData.owner || '';
+      result.wikiFounded = wikiData.founded || '';
+      result.wikiHq = wikiData.hq || '';
     }
     if (debug) {
       const brandQuery = `"${brand}" "owned by" OR "subsidiary of" OR "parent company" OR "headquartered"`;
