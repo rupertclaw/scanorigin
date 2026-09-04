@@ -314,13 +314,13 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:-a
 
   <!-- Nav tabs -->
   <div class="nav-tabs">
-    <div class="nav-tab" data-tab="home" onclick="switchTab('home')">Home</div>
-    <div class="nav-tab active" data-tab="scanner" onclick="switchTab('scanner')">Scanner</div>
+    <div class="nav-tab active" data-tab="home" onclick="switchTab('home')">Home</div>
+    <div class="nav-tab" data-tab="scanner" onclick="switchTab('scanner')">Scanner</div>
     <div class="nav-tab" data-tab="tech" onclick="switchTab('tech')">Tech Alternatives</div>
   </div>
 
   <!-- HOME section -->
-  <div class="section" id="section-home">
+  <div class="section active" id="section-home">
     <div class="hero">
       <h2>Is it Canadian?</h2>
       <p>Scan a barcode or type a brand name to check if it's Canadian-owned. Get nutrition info, ownership chains, and find Canadian alternatives to US products and apps.</p>
@@ -339,7 +339,7 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:-a
   </div>
 
   <!-- SCANNER section -->
-  <div class="section active" id="section-scanner">
+  <div class="section" id="section-scanner">
     <!-- Input mode tabs -->
     <div class="input-mode-tabs">
       <div class="input-mode-tab active" data-mode="barcode" onclick="setInputMode('barcode')">📷 Barcode Scanner</div>
@@ -1366,9 +1366,10 @@ async function fetchAiAlternatives(brand, category) {
 
     if (!resp.ok) {
       clearInterval(timerId);
+      const busy = resp.status === 429;
       slot.innerHTML = `<div class="alternative-suggest" style="opacity:0.7">
         <h4>🍁 Alternatives</h4>
-        <div class="alt-item">Couldn't fetch alternatives. <a href="#" onclick="fetchAiAlternatives('${escapeHtml(brand).replace(/'/g, "\\'")}', '${escapeHtml(category).replace(/'/g, "\\'")}'); return false;">Retry</a></div>
+        <div class="alt-item">${busy ? 'Alternatives service is busy right now' : "Couldn't fetch alternatives"}. <a href="#" onclick="fetchAiAlternatives('${escapeHtml(brand).replace(/'/g, "\\'")}', '${escapeHtml(category).replace(/'/g, "\\'")}'); return false;">Retry</a></div>
       </div>`;
       return;
     }
