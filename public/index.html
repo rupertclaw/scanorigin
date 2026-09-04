@@ -1275,7 +1275,7 @@ async function searchBrand() {
   const term = input.value.trim();
   if (!term) return;
 
-  const area = document.getElementById('resultArea');
+  const area = document.getElementById('brandResults');
   area.innerHTML = `<div style="text-align:center;padding:20px;color:#6b7280"><span class="spinner"></span> Searching for "${escapeHtml(term)}"...</div>`;
 
   try {
@@ -1316,7 +1316,7 @@ async function searchBrand() {
 
 
 function renderBrandResult(searchTerm, chain, ownershipSource) {
-  const area = document.getElementById('resultArea');
+  const area = document.getElementById('brandResults');
   const status = assessCanadianStatus(chain);
   const badgeClass = status.status === 'yes' ? 'yes' : status.status === 'no' ? 'no' : 'maybe';
   const chainHtml = renderOwnershipChain(chain);
@@ -2221,7 +2221,12 @@ async function processBarcode(barcode) {
   }
 }
 
-function lookupManual() {
+function lookupManual(codeArg) {
+  // History items pass a barcode directly; manual input passes nothing
+  if (codeArg) {
+    processBarcode(codeArg);
+    return;
+  }
   const input = document.getElementById('manualCode');
   const code = input.value.trim();
   if (code) {
@@ -2347,6 +2352,8 @@ function setInputMode(mode) {
   if (mode === 'barcode') {
     const br = document.getElementById('brandResults');
     if (br) br.innerHTML = '';
+    const r = document.getElementById('results');
+    if (r && (scanHistory.length === 0)) r.innerHTML = '<div class="no-result"><div class="emoji">📱</div><div class="msg">Scan a product barcode</div><div class="sub">or type the number above to get started</div></div>';
   } else {
     const r = document.getElementById('results');
     if (r) r.innerHTML = '<div class="no-result"><div class="emoji">⌨️</div><div class="msg">Type a brand name above</div><div class="sub">to check if it\'s Canadian-owned</div></div>';
