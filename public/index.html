@@ -2,12 +2,57 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#0a0e14">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ScanOrigin">
-<title>ScanOrigin — Barcode Scanner</title>
+<title>ScanOrigin — Barcode Scanner, Product Origin & Canadian Alternatives</title>
+
+<!-- Primary SEO Meta Tags -->
+<meta name="title" content="ScanOrigin — Barcode Scanner & Product Origin Lookup">
+<meta name="description" content="Scan any barcode or search any brand to find product origin, ownership chain, and Canadian alternatives. Free barcode scanner app with nutrition info, allergens, and tech alternatives.">
+<meta name="keywords" content="barcode scanner, product origin, country of origin, barcode lookup, scan product, where is this made, brand ownership, GS1 lookup, free scanner app">
+<meta name="author" content="ScanOrigin">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://scanorigin.ca/">
+
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://scanorigin.ca/">
+<meta property="og:title" content="ScanOrigin — Barcode Scanner & Product Origin Lookup">
+<meta property="og:description" content="Scan any product barcode to instantly find its country of origin, brand ownership, and manufacturer details. Free, no signup required.">
+<meta property="og:image" content="https://scanorigin.ca/icon-512.png">
+<meta property="og:site_name" content="ScanOrigin">
+<meta property="og:locale" content="en_CA">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="ScanOrigin — Barcode Scanner & Product Origin">
+<meta name="twitter:description" content="Scan any barcode to find where a product is from, who makes it, and more. Free, works on any phone.">
+<meta name="twitter:image" content="https://scanorigin.ca/icon-512.png">
+
+<!-- Structured Data (JSON-LD) -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "ScanOrigin",
+  "url": "https://scanorigin.ca/",
+  "description": "Scan any product barcode to find its country of origin, brand ownership, and manufacturer details.",
+  "applicationCategory": "ShoppingApplication",
+  "operatingSystem": "iOS, Android, Web",
+  "browserRequirements": "Requires camera access",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "CAD"
+  },
+  "icon": "https://scanorigin.ca/icon-512.png",
+  "screenshot": "https://scanorigin.ca/icon-512.png"
+}
+</script>
+
 <!-- Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-29827H2J1K"></script>
 <script>
@@ -16,7 +61,7 @@
   gtag('js', new Date());
   gtag('config', 'G-29827H2J1K');
 </script>
-<link rel="manifest" href="manifest.json?v=14">
+<link rel="manifest" href="manifest.json?v=16">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
@@ -37,9 +82,9 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:-a
 .install-btn { display:flex; align-items:center; gap:5px; padding:6px 12px; background:var(--accent); color:#000; border:none; border-radius:10px; font-size:12px; font-weight:700; cursor:pointer; transition:opacity .15s, transform .1s; }
 .install-btn:active { transform:scale(0.95); }
 .install-btn.hidden { display:none; }
-.donate-link { width:56px; height:56px; z-index:11; flex-shrink:0; transition:transform .1s; display:block; }
+.donate-link { width:36px; height:36px; z-index:11; flex-shrink:0; transition:transform .1s; display:block; }
 .donate-link:active { transform:scale(0.92); }
-.donate-link img { width:56px; height:56px; }
+.donate-link img { width:36px; height:36px; }
 
 /* Controls */
 .controls { padding:8px 12px 6px; display:flex; gap:8px; }
@@ -169,24 +214,138 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:-a
 
 /* Responsive */
 @media (min-width:481px) { #app { border-left:1px solid var(--border); border-right:1px solid var(--border); } }
+
+/* ── TrueNorth merged features ── */
+.hidden { display:none !important; }
+
+/* Nav tabs */
+.nav-tabs { display:flex; border-bottom:1px solid var(--border); position:sticky; top:65px; background:var(--bg); z-index:9; }
+.nav-tab { flex:1; padding:10px 8px; text-align:center; font-size:13px; font-weight:600; color:var(--muted); border-bottom:3px solid transparent; cursor:pointer; transition:all 0.15s; }
+.nav-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+.nav-tab:active { background:var(--card); }
+
+/* Sections */
+.section { display:none; }
+.section.active { display:block; }
+
+/* Home hero */
+.hero { text-align:center; padding:28px 16px 20px; }
+.hero h2 { font-size:24px; font-weight:800; color:var(--text); margin-bottom:8px; }
+.hero p { font-size:14px; color:var(--muted); max-width:400px; margin:0 auto 20px; line-height:1.5; }
+.hero-stats { display:flex; gap:16px; justify-content:center; margin-bottom:20px; }
+.hero-stat { text-align:center; }
+.hero-stat .num { font-size:22px; font-weight:800; color:var(--accent); }
+.hero-stat .label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; }
+.cta-btn { display:inline-block; padding:12px 28px; background:var(--accent); color:#000; border:none; border-radius:12px; font-size:15px; font-weight:700; cursor:pointer; }
+.cta-btn:active { transform:scale(0.97); }
+.feature-cards { display:grid; gap:12px; margin-top:16px; }
+.feature-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; }
+.feature-card h3 { font-size:15px; font-weight:700; margin-bottom:4px; }
+.feature-card p { font-size:13px; color:var(--muted); line-height:1.4; }
+.feature-card .icon { font-size:24px; margin-bottom:8px; }
+
+/* Input mode tabs */
+.input-mode-tabs { display:flex; gap:0; margin:8px 12px; border-radius:10px; overflow:hidden; border:1px solid var(--border); }
+.input-mode-tab { flex:1; padding:10px; text-align:center; font-size:13px; font-weight:600; color:var(--text); cursor:pointer; background:var(--card); transition:all 0.15s; border:1px solid var(--border); }
+.input-mode-tab.active { background:var(--accent); color:#000; border-color:var(--accent); }
+
+/* Canada badge */
+.canada-badge { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:20px; font-size:13px; font-weight:700; margin-bottom:8px; }
+.canada-badge.yes { background:rgba(22,163,74,0.15); color:#4ade80; }
+.canada-badge.no { background:rgba(239,68,68,0.15); color:var(--danger); }
+.canada-badge.maybe { background:rgba(245,158,11,0.15); color:var(--warn); }
+.canada-badge .flag { font-size:16px; }
+
+/* GLEIF ownership chain */
+.gleif-chain { margin:12px 0; padding:12px; background:rgba(0,212,170,0.04); border:1px solid rgba(0,212,170,0.15); border-radius:8px; }
+.gleif-chain h4 { font-size:12px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; }
+.chain-item { display:flex; align-items:center; gap:8px; padding:4px 0; font-size:13px; }
+.chain-item .chain-name { font-weight:600; color:var(--text); }
+.chain-item .chain-detail { color:var(--muted); font-size:12px; }
+.chain-item .chain-flag { font-size:16px; }
+.chain-arrow { color:var(--muted); font-size:12px; padding:2px 0 2px 28px; }
+
+/* Data source badge */
+.data-source { display:inline-block; font-size:10px; padding:2px 8px; border-radius:10px; background:rgba(0,212,170,0.1); color:var(--accent); margin-top:4px; }
+
+/* Alternative suggestions */
+.alternative-suggest { background:rgba(0,200,83,0.05); border:1px solid rgba(0,200,83,0.2); border-radius:8px; padding:12px; margin-top:12px; }
+.alternative-suggest h4 { font-size:13px; font-weight:700; color:#4ade80; margin-bottom:6px; }
+.alternative-suggest .alt-item { font-size:13px; padding:4px 0; }
+.alternative-suggest .alt-item strong { color:var(--text); }
+
+/* Tech alternatives */
+.tech-section { padding:12px; }
+.tech-search { width:100%; padding:12px 14px; border:1px solid var(--border); border-radius:10px; font-size:15px; background:var(--card); color:var(--text); margin-bottom:12px; }
+.tech-search:focus { outline:none; border-color:var(--accent); }
+.tech-filter { display:flex; gap:8px; overflow-x:auto; padding-bottom:12px; -webkit-overflow-scrolling:touch; }
+.tech-chip { white-space:nowrap; padding:6px 14px; border:1px solid var(--border); border-radius:20px; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; background:var(--card); }
+.tech-chip.active { background:var(--accent); color:#000; border-color:var(--accent); }
+.tech-grid { display:grid; gap:12px; }
+.tech-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; }
+.tech-card .us-app { font-size:13px; color:var(--muted); margin-bottom:4px; }
+.tech-card .us-app strong { color:var(--text); }
+.tech-card .ca-app { font-size:16px; font-weight:700; color:var(--accent); margin-bottom:4px; }
+.tech-card .ca-desc { font-size:13px; color:var(--muted); line-height:1.4; margin-bottom:8px; }
+.tech-card .ca-link { display:inline-block; padding:6px 14px; background:var(--accent); color:#000; border-radius:8px; font-size:13px; font-weight:600; text-decoration:none; }
+.tech-card .ca-tags { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+.tech-card .ca-tag { font-size:11px; padding:2px 8px; background:var(--bg); border-radius:12px; color:var(--muted); }
+
+/* Brand search results */
+#brandResults { padding:12px; }
+.brand-result-card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:20px; margin-bottom:16px; }
+
 </style>
 </head>
+<body>
+<div id="app">
 <body>
 <div id="app">
   <div class="header">
     <img src="logo.png" alt="ScanOrigin" class="header-logo">
     <div class="header-text">
       <h1>Scan<span>Origin</span></h1>
-      <div class="subtitle">Barcode scanner · country of origin</div>
+      <div class="subtitle">Barcode scanner · product origin · Canadian alternatives</div>
     </div>
     <div class="header-right">
       <button class="install-btn" id="installBtn">📲 Install</button>
-      <a href="https://buy.stripe.com/00w7sM7DB2T7ayu6Xqe3e01" target="_blank" rel="noopener" class="donate-link" aria-label="Donate Now">
-        <img src="donate.png" alt="Donate Now">
-      </a>
     </div>
   </div>
 
+  <!-- Nav tabs -->
+  <div class="nav-tabs">
+    <div class="nav-tab" data-tab="home" onclick="switchTab('home')">Home</div>
+    <div class="nav-tab active" data-tab="scanner" onclick="switchTab('scanner')">Scanner</div>
+    <div class="nav-tab" data-tab="tech" onclick="switchTab('tech')">Tech Alternatives</div>
+  </div>
+
+  <!-- HOME section -->
+  <div class="section" id="section-home">
+    <div class="hero">
+      <h2>Is it Canadian?</h2>
+      <p>Scan a barcode or type a brand name to check if it's Canadian-owned. Get nutrition info, ownership chains, and find Canadian alternatives to US products and apps.</p>
+      <div class="hero-stats">
+        <div class="hero-stat"><div class="num">GLEIF</div><div class="label">Ownership</div></div>
+        <div class="hero-stat"><div class="num">6</div><div class="label">Data Sources</div></div>
+        <div class="hero-stat"><div class="num">100%</div><div class="label">Free</div></div>
+      </div>
+      <button class="cta-btn" onclick="switchTab('scanner')">Start Scanning</button>
+    </div>
+    <div class="feature-cards">
+      <div class="feature-card"><div class="icon">📷</div><h3>Barcode Scanner</h3><p>Scan any product barcode. Get product details, nutrition, ingredients, origin, and trace brand ownership through GLEIF.</p></div>
+      <div class="feature-card"><div class="icon">⌨️</div><h3>Brand Name Search</h3><p>Type any brand name to search GLEIF for its parent company, headquarters country, and full ownership chain. No barcode needed.</p></div>
+      <div class="feature-card"><div class="icon">💻</div><h3>Tech Alternatives</h3><p>Canadian alternatives to popular US apps and services. From cloud storage to video calls to AI tools.</p></div>
+    </div>
+  </div>
+
+  <!-- SCANNER section -->
+  <div class="section active" id="section-scanner">
+    <!-- Input mode tabs -->
+    <div class="input-mode-tabs">
+      <div class="input-mode-tab active" data-mode="barcode" onclick="setInputMode('barcode')">📷 Barcode Scanner</div>
+      <div class="input-mode-tab" data-mode="brand" onclick="setInputMode('brand')">⌨️ Brand Name Search</div>
+    </div>
+    <div id="barcodeMode">
   <div class="controls">
     <button class="btn btn-primary" id="startBtn" onclick="startScanning()">📷 Start Scanner</button>
     <button class="btn btn-stop" id="stopBtn" onclick="stopScanning()">⏹ Stop</button>
@@ -207,7 +366,12 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:-a
     <button onclick="lookupManual()">Look Up</button>
   </div>
 
-  <div style="text-align:center; padding:8px 0 4px;">
+  <!-- iOS debug panel removed for production -->
+
+  <div style="text-align:center; padding:8px 0 4px; display:flex; justify-content:center; align-items:center; gap:16px;">
+    <a href="https://buy.stripe.com/00w7sM7DB2T7ayu6Xqe3e01" target="_blank" rel="noopener" class="donate-link" aria-label="Donate Now">
+      <img src="donate.png" alt="Donate Now">
+    </a>
     <a href="https://www.facebook.com/share/1K4HP63sMy/" target="_blank" rel="noopener" aria-label="Facebook" style="display:inline-block;">
       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <circle cx="12" cy="12" r="12" fill="#1877F2"/>
@@ -216,6 +380,20 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:-a
     </a>
   </div>
 
+    </div> <!-- /barcodeMode -->
+
+    <!-- Brand name search mode -->
+    <div id="brandMode" class="hidden" style="padding:0 12px 8px;">
+      <div class="manual-input">
+        <input type="text" id="brandSearch" placeholder="Type a brand name (e.g. Heinz, Loblaw, Maple Leaf)" onkeydown="if(event.key==='Enter')searchBrand()">
+        <button onclick="searchBrand()">Search</button>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;padding:0 4px;">
+        Try: Heinz, Kraft, Coca-Cola, Maple Leaf Foods, Saputo, McCain, Loblaw, Nature's Path, Chapman's, Daiya
+      </div>
+    </div>
+
+    <!-- Barcode results -->
   <div class="results" id="results">
     <div class="no-result">
       <div class="emoji">📱</div>
@@ -223,7 +401,31 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:-a
       <div class="sub">or type the number above to get started</div>
     </div>
   </div>
-</div>
+    <!-- Brand search results -->
+    <div id="brandResults"></div>
+
+  </div> <!-- /section-scanner -->
+
+  <!-- TECH ALTERNATIVES section -->
+  <div class="section" id="section-tech">
+    <div class="tech-section">
+      <input type="text" class="tech-search" id="techSearch" placeholder="Search US app or Canadian alternative..." oninput="filterTech()">
+      <div class="tech-filter" id="techFilter">
+        <div class="tech-chip active" data-cat="all" onclick="setTechFilter('all')">All</div>
+        <div class="tech-chip" data-cat="cloud" onclick="setTechFilter('cloud')">Cloud Storage</div>
+        <div class="tech-chip" data-cat="video" onclick="setTechFilter('video')">Video Calls</div>
+        <div class="tech-chip" data-cat="ai" onclick="setTechFilter('ai')">AI Tools</div>
+        <div class="tech-chip" data-cat="payments" onclick="setTechFilter('payments')">Payments</div>
+        <div class="tech-chip" data-cat="productivity" onclick="setTechFilter('productivity')">Productivity</div>
+        <div class="tech-chip" data-cat="social" onclick="setTechFilter('social')">Social</div>
+        <div class="tech-chip" data-cat="email" onclick="setTechFilter('email')">Email</div>
+        <div class="tech-chip" data-cat="security" onclick="setTechFilter('security')">Security</div>
+      </div>
+      <div class="tech-grid" id="techGrid"></div>
+    </div>
+  </div> <!-- /section-tech -->
+
+</div> <!-- /#app -->
 
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
@@ -406,7 +608,802 @@ function getConfidence(gs1Country, productData) {
   return { level: 'low', label: 'Low — barcode registration only' };
 }
 
-// ── Product Data Lookup ──────────────────────────────────────
+
+// ═══════════════════════════════════════════════════════════════
+// STATIC BRAND DATABASE (from TrueNorth)
+// Maps consumer brand names to parent company legal names.
+// GLEIF indexes legal entities, not consumer brands, so this bridges
+// the gap: brand → legal entity name → GLEIF ownership chain.
+// ═══════════════════════════════════════════════════════════════
+const BRAND_DB = {
+  // Beverages
+  'coca-cola': { company: 'The Coca-Cola Company', country: 'US' },
+  'coca cola': { company: 'The Coca-Cola Company', country: 'US' },
+  'coke': { company: 'The Coca-Cola Company', country: 'US' },
+  'fanta': { company: 'The Coca-Cola Company', country: 'US' },
+  'sprite': { company: 'The Coca-Cola Company', country: 'US' },
+  'minute maid': { company: 'The Coca-Cola Company', country: 'US' },
+  'dasani': { company: 'The Coca-Cola Company', country: 'US' },
+  'powerade': { company: 'The Coca-Cola Company', country: 'US' },
+  'simply': { company: 'The Coca-Cola Company', country: 'US' },
+  'pepsi': { company: 'PepsiCo, Inc.', country: 'US' },
+  'pepsi-cola': { company: 'PepsiCo, Inc.', country: 'US' },
+  'mountain dew': { company: 'PepsiCo, Inc.', country: 'US' },
+  'gatorade': { company: 'PepsiCo, Inc.', country: 'US' },
+  'tropicana': { company: 'PepsiCo, Inc.', country: 'US' },
+  'lay\'s': { company: 'PepsiCo, Inc.', country: 'US' },
+  'lays': { company: 'PepsiCo, Inc.', country: 'US' },
+  'doritos': { company: 'PepsiCo, Inc.', country: 'US' },
+  'cheetos': { company: 'PepsiCo, Inc.', country: 'US' },
+  'tostitos': { company: 'PepsiCo, Inc.', country: 'US' },
+  'quaker': { company: 'PepsiCo, Inc.', country: 'US' },
+  'aquafina': { company: 'PepsiCo, Inc.', country: 'US' },
+  'dr pepper': { company: 'Keurig Dr Pepper Inc.', country: 'US' },
+  '7up': { company: 'Keurig Dr Pepper Inc.', country: 'US' },
+  'snapple': { company: 'Keurig Dr Pepper Inc.', country: 'US' },
+  'canada dry': { company: 'Keurig Dr Pepper Inc.', country: 'US' },
+  'a&w': { company: 'Keurig Dr Pepper Inc.', country: 'US' },
+  'clearly canadian': { company: 'Clearly Canadian Beverage Corporation', country: 'CA' },
+  'okanagan spring': { company: 'Okanagan Spring Brewery', country: 'CA' },
+
+  // Food - conglomerates
+  'kraft': { company: 'The Kraft Heinz Company', country: 'US' },
+  'kraft heinz': { company: 'The Kraft Heinz Company', country: 'US' },
+  'heinz': { company: 'The Kraft Heinz Company', country: 'US' },
+  'heinz ketchup': { company: 'The Kraft Heinz Company', country: 'US' },
+  'philadelphia': { company: 'The Kraft Heinz Company', country: 'US' },
+  'classico': { company: 'The Kraft Heinz Company', country: 'US' },
+  'oreo': { company: 'Mondelez International, Inc.', country: 'US' },
+  'chips ahoy': { company: 'Mondelez International, Inc.', country: 'US' },
+  'ritz': { company: 'Mondelez International, Inc.', country: 'US' },
+  'cadbury': { company: 'Mondelez International, Inc.', country: 'US' },
+  'cote d\'or': { company: 'Mondelez International, Inc.', country: 'US' },
+  'honey maid': { company: 'Mondelez International, Inc.', country: 'US' },
+  'triscuit': { company: 'Mondelez International, Inc.', country: 'US' },
+  'wheat thins': { company: 'Mondelez International, Inc.', country: 'US' },
+  'sneakers': { company: 'Mars, Incorporated', country: 'US' },
+  'snickers': { company: 'Mars, Incorporated', country: 'US' },
+  'm&ms': { company: 'Mars, Incorporated', country: 'US' },
+  'mars': { company: 'Mars, Incorporated', country: 'US' },
+  'twix': { company: 'Mars, Incorporated', country: 'US' },
+  'milky way': { company: 'Mars, Incorporated', country: 'US' },
+  '3 musketeers': { company: 'Mars, Incorporated', country: 'US' },
+  'uncle ben\'s': { company: 'Mars, Incorporated', country: 'US' },
+  'ben\'s original': { company: 'Mars, Incorporated', country: 'US' },
+  'pedigree': { company: 'Mars, Incorporated', country: 'US' },
+  'whiskas': { company: 'Mars, Incorporated', country: 'US' },
+  'nestle': { company: 'Nestlé S.A.', country: 'CH' },
+  'nestlé': { company: 'Nestlé S.A.', country: 'CH' },
+  'nescafe': { company: 'Nestlé S.A.', country: 'CH' },
+  'nescafé': { company: 'Nestlé S.A.', country: 'CH' },
+  'kit kat': { company: 'Nestlé S.A.', country: 'CH' },
+  'kitkat': { company: 'Nestlé S.A.', country: 'CH' },
+  'maggi': { company: 'Nestlé S.A.', country: 'CH' },
+  'lean cuisine': { company: 'Nestlé S.A.', country: 'CH' },
+  'stouffer\'s': { company: 'Nestlé S.A.', country: 'CH' },
+  'stouffers': { company: 'Nestlé S.A.', country: 'CH' },
+  'haagen-dazs': { company: 'Nestlé S.A.', country: 'CH' },
+  'häagen-dazs': { company: 'Nestlé S.A.', country: 'CH' },
+  'purina': { company: 'Nestlé S.A.', country: 'CH' },
+  'friskies': { company: 'Nestlé S.A.', country: 'CH' },
+  'unilever': { company: 'Unilever PLC', country: 'GB' },
+  'hellmann\'s': { company: 'Unilever PLC', country: 'GB' },
+  'hellmanns': { company: 'Unilever PLC', country: 'GB' },
+  'best foods': { company: 'Unilever PLC', country: 'GB' },
+  'knorr': { company: 'Unilever PLC', country: 'GB' },
+  'lipton': { company: 'Unilever PLC', country: 'GB' },
+  'ben & jerry\'s': { company: 'Unilever PLC', country: 'GB' },
+  'ben and jerry\'s': { company: 'Unilever PLC', country: 'GB' },
+  'breyers': { company: 'Unilever PLC', country: 'GB' },
+  'dove': { company: 'Unilever PLC', country: 'GB' },
+  'axe': { company: 'Unilever PLC', country: 'GB' },
+  'sunsilk': { company: 'Unilever PLC', country: 'GB' },
+  'tresemme': { company: 'Unilever PLC', country: 'GB' },
+  'tRESemmé': { company: 'Unilever PLC', country: 'GB' },
+  'q-tips': { company: 'Unilever PLC', country: 'GB' },
+
+  // Cereal
+  'kellogg': { company: 'Kellanova (Kellogg Company)', country: 'US' },
+  'kellogg\'s': { company: 'Kellanova (Kellogg Company)', country: 'US' },
+  'frosted flakes': { company: 'Kellanova (Kellogg Company)', country: 'US' },
+  'froot loops': { company: 'Kellanova (Kellogg Company)', country: 'US' },
+  'corn flakes': { company: 'Kellanova (Kellogg Company)', country: 'US' },
+  'rice krispies': { company: 'Kellanova (Kellogg Company)', country: 'US' },
+  'special k': { company: 'Kellanova (Kellogg Company)', country: 'US' },
+  'pringles': { company: 'Kellanova (Kellogg Company)', country: 'US' },
+  'cheerios': { company: 'General Mills, Inc.', country: 'US' },
+  'general mills': { company: 'General Mills, Inc.', country: 'US' },
+  'lucky charms': { company: 'General Mills, Inc.', country: 'US' },
+  'cinnamon toast crunch': { company: 'General Mills, Inc.', country: 'US' },
+  'honey nut cheerios': { company: 'General Mills, Inc.', country: 'US' },
+  'betty crocker': { company: 'General Mills, Inc.', country: 'US' },
+  'pillsbury': { company: 'General Mills, Inc.', country: 'US' },
+  'green giant': { company: 'General Mills, Inc.', country: 'US' },
+  'haagen dazs': { company: 'General Mills, Inc.', country: 'US' },
+
+  // Condiments & sauces
+  'french\'s': { company: 'McCormick & Company, Incorporated', country: 'US' },
+  'frenchs': { company: 'McCormick & Company, Incorporated', country: 'US' },
+  'mccormick': { company: 'McCormick & Company, Incorporated', country: 'US' },
+  'lawry\'s': { company: 'McCormick & Company, Incorporated', country: 'US' },
+
+  // Soup
+  'campbell': { company: 'The Campbell\'s Company', country: 'US' },
+  'campbell\'s': { company: 'The Campbell\'s Company', country: 'US' },
+  'campbells': { company: 'The Campbell\'s Company', country: 'US' },
+  'pepperidge farm': { company: 'The Campbell\'s Company', country: 'US' },
+  'prego': { company: 'The Campbell\'s Company', country: 'US' },
+  'swanson': { company: 'The Campbell\'s Company', country: 'US' },
+  'v8': { company: 'The Campbell\'s Company', country: 'US' },
+
+  // Snacks
+  'smuckers': { company: 'The J.M. Smucker Company', country: 'US' },
+  'smucker\'s': { company: 'The J.M. Smucker Company', country: 'US' },
+  'jif': { company: 'The J.M. Smucker Company', country: 'US' },
+  'uncrustables': { company: 'The J.M. Smucker Company', country: 'US' },
+  'hostess': { company: 'Hostess Brands, Inc.', country: 'US' },
+  'dolly madison': { company: 'Hostess Brands, Inc.', country: 'US' },
+  'drake\'s': { company: 'Hostess Brands, Inc.', country: 'US' },
+
+  // Household
+  'procter & gamble': { company: 'The Procter & Gamble Company', country: 'US' },
+  'procter and gamble': { company: 'The Procter & Gamble Company', country: 'US' },
+  'p&g': { company: 'The Procter & Gamble Company', country: 'US' },
+  'tide': { company: 'The Procter & Gamble Company', country: 'US' },
+  'downy': { company: 'The Procter & Gamble Company', country: 'US' },
+  'crest': { company: 'The Procter & Gamble Company', country: 'US' },
+  'oral-b': { company: 'The Procter & Gamble Company', country: 'US' },
+  'pampers': { company: 'The Procter & Gamble Company', country: 'US' },
+  'always': { company: 'The Procter & Gamble Company', country: 'US' },
+  'gillette': { company: 'The Procter & Gamble Company', country: 'US' },
+  'venus': { company: 'The Procter & Gamble Company', country: 'US' },
+  'bounty': { company: 'The Procter & Gamble Company', country: 'US' },
+  'charmin': { company: 'The Procter & Gamble Company', country: 'US' },
+  'pringles': { company: 'Kellanova (Kellogg Company)', country: 'US' },
+
+  // Conagra
+  'conagra': { company: 'Conagra Brands, Inc.', country: 'US' },
+  'hungry-man': { company: 'Conagra Brands, Inc.', country: 'US' },
+  'healthy choice': { company: 'Conagra Brands, Inc.', country: 'US' },
+  'marie callender\'s': { company: 'Conagra Brands, Inc.', country: 'US' },
+  'reddi-wip': { company: 'Conagra Brands, Inc.', country: 'US' },
+  'peter pan': { company: 'Conagra Brands, Inc.', country: 'US' },
+  'duck tape': { company: 'Conagra Brands, Inc.', country: 'US' },
+
+  // Bimbo (Mexican, large Canadian presence)
+  'bimbo': { company: 'Grupo Bimbo, S.A.B. de C.V.', country: 'MX' },
+  'thomas\'': { company: 'Grupo Bimbo, S.A.B. de C.V.', country: 'MX' },
+  'entenmann\'s': { company: 'Grupo Bimbo, S.A.B. de C.V.', country: 'MX' },
+  'arnold': { company: 'Grupo Bimbo, S.A.B. de C.V.', country: 'MX' },
+  'stroehmann': { company: 'Grupo Bimbo, S.A.B. de C.V.', country: 'MX' },
+  'tastykake': { company: 'Grupo Bimbo, S.A.B. de C.V.', country: 'MX' },
+
+  // Canadian companies
+  'saputo': { company: 'Saputo Inc.', country: 'CA' },
+  'maple leaf': { company: 'Maple Leaf Foods Inc.', country: 'CA' },
+  'maple leaf foods': { company: 'Maple Leaf Foods Inc.', country: 'CA' },
+  'mccain': { company: 'McCain Foods Limited', country: 'CA' },
+  'mccain foods': { company: 'McCain Foods Limited', country: 'CA' },
+  'loblaw': { company: 'Loblaw Companies Limited', country: 'CA' },
+  'loblaw companies': { company: 'Loblaw Companies Limited', country: 'CA' },
+  'president\'s choice': { company: 'Loblaw Companies Limited', country: 'CA' },
+  'pc': { company: 'Loblaw Companies Limited', country: 'CA' },
+  'no name': { company: 'Loblaw Companies Limited', country: 'CA' },
+  'chapman\'s': { company: "David Chapman's Ice Cream Limited", country: 'CA' },
+  'chamans': { company: "David Chapman's Ice Cream Limited", country: 'CA' },
+  'daiya': { company: 'Daiya Foods Inc.', country: 'CA' },
+  'nature\'s path': { company: "Nature's Path Foods Inc.", country: 'CA' },
+  'natures path': { company: "Nature's Path Foods Inc.", country: 'CA' },
+  'oasis': { company: 'A. Lassonde Inc.', country: 'CA' },
+  'lassonde': { company: 'A. Lassonde Inc.', country: 'CA' },
+  'ed smith': { company: 'E.D. Smith Food Safe Inc.', country: 'CA' },
+  'e.d. smith': { company: 'E.D. Smith Food Safe Inc.', country: 'CA' },
+  'highlander': { company: 'Highlander Spirits', country: 'CA' },
+
+  // Retail
+  'walmart': { company: 'Walmart Inc.', country: 'US' },
+  'great value': { company: 'Walmart Inc.', country: 'US' },
+  'costco': { company: 'Costco Wholesale Corporation', country: 'US' },
+  'kirkland': { company: 'Costco Wholesale Corporation', country: 'US' },
+  'kirkland signature': { company: 'Costco Wholesale Corporation', country: 'US' },
+  'target': { company: 'Target Corporation', country: 'US' },
+  'up & up': { company: 'Target Corporation', country: 'US' },
+  'whole foods': { company: 'Amazon.com, Inc.', country: 'US' },
+  '365': { company: 'Amazon.com, Inc.', country: 'US' },
+  'amazon': { company: 'Amazon.com, Inc.', country: 'US' },
+  'amazonfresh': { company: 'Amazon.com, Inc.', country: 'US' },
+
+  // Personal care
+  'colgate': { company: 'Colgate-Palmolive Company', country: 'US' },
+  'palmolive': { company: 'Colgate-Palmolive Company', country: 'US' },
+  'softsoap': { company: 'Colgate-Palmolive Company', country: 'US' },
+  'irish spring': { company: 'Colgate-Palmolive Company', country: 'US' },
+  'speed stick': { company: 'Colgate-Palmolive Company', country: 'US' },
+  'l\'oreal': { company: 'L\'Oréal S.A.', country: 'FR' },
+  'loreal': { company: 'L\'Oréal S.A.', country: 'FR' },
+  'garnier': { company: 'L\'Oréal S.A.', country: 'FR' },
+  'maybelline': { company: 'L\'Oréal S.A.', country: 'FR' },
+  'cerave': { company: 'L\'Oréal S.A.', country: 'FR' },
+
+  // Johnson & Johnson
+  'johnson & johnson': { company: 'Johnson & Johnson', country: 'US' },
+  'johnson and johnson': { company: 'Johnson & Johnson', country: 'US' },
+  'j&j': { company: 'Johnson & Johnson', country: 'US' },
+  'band-aid': { company: 'Johnson & Johnson', country: 'US' },
+  'tylenol': { company: 'Johnson & Johnson', country: 'US' },
+  'motrin': { company: 'Johnson & Johnson', country: 'US' },
+  'aveeno': { company: 'Johnson & Johnson', country: 'US' },
+  'neutrogena': { company: 'Johnson & Johnson', country: 'US' },
+  'lubriderm': { company: 'Johnson & Johnson', country: 'US' },
+  'listerine': { company: 'Johnson & Johnson', country: 'US' },
+
+  // Reckitt
+  'reckitt': { company: 'Reckitt Benckiser Group plc', country: 'GB' },
+  'lysol': { company: 'Reckitt Benckiser Group plc', country: 'GB' },
+  'finish': { company: 'Reckitt Benckiser Group plc', country: 'GB' },
+  'mucinex': { company: 'Reckitt Benckiser Group plc', country: 'GB' },
+  'air wick': { company: 'Reckitt Benckiser Group plc', country: 'GB' },
+  'enfamil': { company: 'Reckitt Benckiser Group plc', country: 'GB' },
+
+  // SC Johnson
+  'sc johnson': { company: 'S.C. Johnson & Son, Inc.', country: 'US' },
+  'raid': { company: 'S.C. Johnson & Son, Inc.', country: 'US' },
+  'pledge': { company: 'S.C. Johnson & Son, Inc.', country: 'US' },
+  'windex': { company: 'S.C. Johnson & Son, Inc.', country: 'US' },
+  'glade': { company: 'S.C. Johnson & Son, Inc.', country: 'US' },
+  'off!': { company: 'S.C. Johnson & Son, Inc.', country: 'US' },
+  'ziploc': { company: 'S.C. Johnson & Son, Inc.', country: 'US' },
+
+  // Clorox
+  'clorox': { company: 'The Clorox Company', country: 'US' },
+  'clorox bleach': { company: 'The Clorox Company', country: 'US' },
+  'glad': { company: 'The Clorox Company', country: 'US' },
+  'brita': { company: 'The Clorox Company', country: 'US' },
+  'pine-sol': { company: 'The Clorox Company', country: 'US' },
+  'liquid-plumr': { company: 'The Clorox Company', country: 'US' },
+  'kingsford': { company: 'The Clorox Company', country: 'US' },
+  'hidden valley': { company: 'The Clorox Company', country: 'US' },
+
+  // Kraft Heinz Canada
+  'kraft canada': { company: 'Kraft Heinz Canada ULC', country: 'CA' },
+  'kraft peanut butter': { company: 'Kraft Heinz Canada ULC', country: 'CA' },
+  'ketchup heinz': { company: 'The Kraft Heinz Company', country: 'US' },
+};
+
+
+// Look up a brand name in the static database.
+// Returns { company, country } or null.
+// Tries exact match first, then partial/contains match.
+function lookupBrandDb(brandName) {
+  if (!brandName) return null;
+  const normalized = brandName.toLowerCase().trim();
+
+  // Exact match
+  if (BRAND_DB[normalized]) return BRAND_DB[normalized];
+
+  // Partial match: check if any key is contained in the brand name
+  for (const [key, val] of Object.entries(BRAND_DB)) {
+    if (normalized.includes(key) || key.includes(normalized)) {
+      return val;
+    }
+  }
+
+  return null;
+}
+
+function extractBrandFromProduct(product) {
+  const name = (product.product_name || '').toLowerCase();
+  const keywords = product._keywords || [];
+  if (!name) return null;
+
+  // Common stopwords + generic food/descriptor terms to skip
+  const stop = new Set(['the','a','an','and','of','for','with','from','their',
+    'nations','nation','favourite','favorite','product','original','new','extra',
+    'granules','granule','sauce','sauces','gravy','mix','powder','instant',
+    'dehydrated','dehydrated-sauce','food','drink','beverage','condiment',
+    'meat','meat-based','vegetarian','organic','natural','light','dark',
+    'original','pack','bottle','can','tin','box','bag','pouch','jar',
+    'flavoured','flavored','flavour','flavor','enriched','fortified',
+    'reduced','fat','free','sugar','salt','low','high','best','value',
+    'quality','choice','select','premium','gold','silver','red','white',
+    'big','small','mini','jumbo','family','size','sized']);
+
+  // Build a set of food-category words to exclude (categories like
+  // "Meat-based sauces, Dehydrated sauces, Gravy" produce keywords
+  // that are food descriptors, not brand names)
+  const categories = (product.categories || '').toLowerCase();
+  const catWords = new Set(categories.split(/[, ]+/).filter(w => w.length > 2));
+
+  // Candidate brand words: non-stopword, non-category keywords
+  const candidates = keywords.filter(k =>
+    k.length > 2 && !stop.has(k) && !catWords.has(k)
+  );
+
+  // Strategy 1: Check if any candidate matches a brand DB key
+  for (const c of candidates) {
+    if (BRAND_DB[c]) return BRAND_DB[c].company || c;
+  }
+  for (const c of candidates) {
+    for (const [key] of Object.entries(BRAND_DB)) {
+      if (c.includes(key) || key.includes(c)) return key;
+    }
+  }
+
+  // Strategy 2: Return the shortest candidate (brand names tend to
+  // be short distinctive words, while generic descriptors are longer)
+  if (candidates.length > 0) {
+    candidates.sort((a, b) => a.length - b.length);
+    return candidates[0];
+  }
+
+  return null;
+}
+
+const COUNTRY_NAMES = {
+  'US': 'United States', 'CA': 'Canada', 'GB': 'United Kingdom',
+  'UK': 'United Kingdom', 'FR': 'France', 'DE': 'Germany', 'NL': 'Netherlands',
+  'CH': 'Switzerland', 'IN': 'India', 'CN': 'China', 'JP': 'Japan',
+  'AU': 'Australia', 'NZ': 'New Zealand', 'BR': 'Brazil', 'MX': 'Mexico',
+  'IT': 'Italy', 'ES': 'Spain', 'PT': 'Portugal', 'BE': 'Belgium',
+  'SE': 'Sweden', 'NO': 'Norway', 'DK': 'Denmark', 'FI': 'Finland',
+  'IE': 'Ireland', 'AT': 'Austria', 'PL': 'Poland', 'RU': 'Russia',
+  'KR': 'South Korea', 'TW': 'Taiwan', 'SG': 'Singapore', 'HK': 'Hong Kong',
+  'AE': 'United Arab Emirates', 'SA': 'Saudi Arabia', 'ZA': 'South Africa',
+  'AR': 'Argentina', 'CL': 'Chile', 'CO': 'Colombia', 'PE': 'Peru',
+  'TR': 'Turkey', 'IL': 'Israel', 'EG': 'Egypt', 'TH': 'Thailand',
+  'ID': 'Indonesia', 'MY': 'Malaysia', 'PH': 'Philippines', 'VN': 'Vietnam',
+  'LU': 'Luxembourg', 'LI': 'Liechtenstein', 'CZ': 'Czech Republic',
+  'HU': 'Hungary', 'RO': 'Romania', 'GR': 'Greece', 'PT': 'Portugal',
+  'BG': 'Bulgaria', 'HR': 'Croatia', 'SK': 'Slovakia', 'SI': 'Slovenia',
+  'EE': 'Estonia', 'LV': 'Latvia', 'LT': 'Lithuania', 'IS': 'Iceland',
+  'UA': 'Ukraine', 'BY': 'Belarus', 'RS': 'Serbia', 'BA': 'Bosnia',
+  'QA': 'Qatar', 'KW': 'Kuwait', 'OM': 'Oman', 'BH': 'Bahrain',
+  'JO': 'Jordan', 'LB': 'Lebanon', 'MA': 'Morocco', 'DZ': 'Algeria',
+  'TN': 'Tunisia', 'NG': 'Nigeria', 'KE': 'Kenya', 'GH': 'Ghana',
+  'PK': 'Pakistan', 'BD': 'Bangladesh', 'LK': 'Sri Lanka',
+  'CR': 'Costa Rica', 'PA': 'Panama', 'UY': 'Uruguay', 'EC': 'Ecuador',
+  'VE': 'Venezuela', 'PY': 'Paraguay', 'BO': 'Bolivia',
+};
+
+function countryCodeToName(code) {
+  if (!code) return null;
+  // Already a full name (longer than 2 chars, not in the map)
+  if (code.length > 2 && !COUNTRY_NAMES[code.toUpperCase()]) return code;
+  return COUNTRY_NAMES[code.toUpperCase()] || code.toUpperCase();
+}
+
+const GLEIF_API = 'https://api.gleif.org/api/v1/lei-records';
+
+// Cache for GLEIF entity lookups
+const gleifCache = new Map();
+
+// ── Search GLEIF for a legal entity by name ──────────────────
+async function gleifSearch(name) {
+  if (!name || name.length < 2) return [];
+  try {
+    const params = new URLSearchParams({
+      'filter[entity.legalName]': name,
+      'page[size]': '5',
+    });
+    const resp = await fetch(`${GLEIF_API}?${params}`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    return data.data || [];
+  } catch (e) { return []; }
+}
+
+// ── Get a single LEI record by LEI ─────────────────────────────
+async function gleifGetRecord(lei) {
+  if (gleifCache.has(lei)) return gleifCache.get(lei);
+  try {
+    const resp = await fetch(`${GLEIF_API}/${lei}`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const record = data.data || null;
+    if (record) gleifCache.set(lei, record);
+    return record;
+  } catch (e) { return null; }
+}
+
+// ── Get the direct parent of an LEI record ────────────────────
+async function gleifGetParent(lei) {
+  try {
+    const resp = await fetch(`${GLEIF_API}/${lei}/direct-parent`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    return data.data || null;
+  } catch (e) { return null; }
+}
+
+// ── Extract entity info from a GLEIF record ───────────────────
+function gleifEntityInfo(record) {
+  if (!record || !record.attributes) return null;
+  const a = record.attributes;
+  const rels = record.relationships || {};
+  // GLEIF search response doesn't include children data, but it includes
+  // a links object for direct-children when the entity has children.
+  // An empty {} links object means no children.
+  const childLinks = rels['direct-children']?.links || {};
+  const hasChildren = Object.keys(childLinks).length > 0;
+  return {
+    lei: record.id,
+    name: a.entity?.legalName?.name || 'Unknown',
+    country: a.entity?.legalAddress?.country || null,
+    hqCountry: a.entity?.headquartersAddress?.country || null,
+    status: a.registration?.status || null,
+    hasParent: !!(rels['direct-parent']?.links?.['lei-record']),
+    hasChildren: hasChildren,
+  };
+}
+
+// ── Trace full ownership chain via GLEIF ──────────────────────
+async function traceGleifChain(startLei, maxDepth = 5) {
+  const chain = [];
+  let currentLei = startLei;
+  let depth = 0;
+
+  while (currentLei && depth < maxDepth) {
+    const record = await gleifGetRecord(currentLei);
+    if (!record) break;
+
+    const info = gleifEntityInfo(record);
+    if (!info) break;
+
+    const country = info.country || info.hqCountry;
+    const countryName = countryCodeToName(country);
+    chain.push({
+      lei: info.lei,
+      name: info.name,
+      country: countryName,
+      hq: countryCodeToName(info.hqCountry),
+      isCanadian: country === 'CA',
+      isUS: country === 'US',
+    });
+
+    // Check if this entity has a parent
+    if (!info.hasParent) break;
+
+    // Fetch the parent
+    const parent = await gleifGetParent(currentLei);
+    if (!parent || !parent.id) break;
+
+    // Avoid cycles
+    if (chain.some(c => c.lei === parent.id)) break;
+
+    currentLei = parent.id;
+    depth++;
+  }
+
+  return chain;
+}
+
+// ── Build chain from brand DB entry + GLEIF ───────────────────
+// 1. Look up the parent company in GLEIF
+// 2. If found, trace the full ownership chain from there
+// 3. Prepend the brand itself as the first chain element
+async function buildChainFromBrandDb(brandName, dbEntry) {
+  const chain = [{
+    lei: null,
+    name: brandName,
+    country: countryCodeToName(dbEntry.country),
+    hq: null,
+    isCanadian: dbEntry.country === 'CA',
+    isUS: dbEntry.country === 'US',
+  }];
+
+  // Search GLEIF for the parent company
+  const results = await gleifSearch(dbEntry.company);
+  if (results.length === 0) {
+    // GLEIF didn't find it, but we know the country from the DB
+    chain.push({
+      lei: null,
+      name: dbEntry.company,
+      country: countryCodeToName(dbEntry.country),
+      hq: null,
+      isCanadian: dbEntry.country === 'CA',
+      isUS: dbEntry.country === 'US',
+    });
+    return chain;
+  }
+
+  // Find the best match (prefer exact name match, prefer ISSUED status)
+  let bestRecord = null;
+  let bestScore = -1;
+  for (const r of results) {
+    const info = gleifEntityInfo(r);
+    if (!info) continue;
+    let score = 0;
+    if (info.name.toLowerCase() === dbEntry.company.toLowerCase()) score += 100;
+    if (info.status === 'ISSUED') score += 10;
+    if (info.country) score += 5;
+    if (info.hasParent) score += 3;
+    if (score > bestScore) { bestScore = score; bestRecord = r; }
+  }
+
+  if (!bestRecord) bestRecord = results[0];
+
+  // Trace the chain from the parent company
+  const parentChain = await traceGleifChain(bestRecord.id);
+  return chain.concat(parentChain);
+}
+
+// ── Search GLEIF directly (no brand DB match) ─────────────────
+async function buildChainFromGleifSearch(term) {
+  const results = await gleifSearch(term);
+  if (results.length === 0) return null;
+
+  // Filter out LAPSED records — they're inactive entities
+  const activeResults = results.filter(r => {
+    const info = gleifEntityInfo(r);
+    return info && info.status !== 'LAPSED';
+  });
+  const candidates = activeResults.length > 0 ? activeResults : results;
+
+  // Try up to 5 results, pick the one with the best chain
+  // Scoring prioritizes name similarity and ultimate-parent status
+  // over chain length, so we don't bias toward subsidiaries
+  let bestChain = null;
+  let bestScore = -1;
+
+  for (let i = 0; i < Math.min(candidates.length, 5); i++) {
+    const info = gleifEntityInfo(candidates[i]);
+    if (!info) continue;
+
+    const chain = await traceGleifChain(candidates[i].id);
+    if (chain.length === 0) continue;
+
+    // Name similarity: how close is the entity name to the search term?
+    const nameSim = nameSimilarity(term, info.name);
+
+    // Ultimate parent detection: an entity with no parent AND children
+    // is the real top of the ownership tree. An entity with no parent
+    // and no children is likely a subsidiary that didn't report its parent.
+    const isRealUltimateParent = !info.hasParent && info.hasChildren;
+
+    // Active status bonus
+    const isActive = info.status === 'ISSUED';
+
+    // Score: ultimate parent status dominates (fixes subsidiary misidentification),
+    // then name similarity, then chain quality
+    const score = (isRealUltimateParent ? 5000 : 0)
+      + nameSim * 1000
+      + (isActive ? 10 : 0)
+      + chain.filter(c => c.country).length * 5
+      + chain.length;
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestChain = chain;
+    }
+  }
+
+  return bestChain;
+}
+
+// ── Name similarity (case-insensitive, token-based Jaccard) ────
+function nameSimilarity(searchTerm, entityName) {
+  const a = searchTerm.toLowerCase().trim().split(/\s+/).filter(t => t.length > 1);
+  const b = entityName.toLowerCase().trim().split(/\s+/).filter(t => t.length > 1);
+  if (a.length === 0 || b.length === 0) return 0;
+  const setA = new Set(a);
+  const setB = new Set(b);
+  let intersection = 0;
+  for (const t of setA) if (setB.has(t)) intersection++;
+  const union = setA.size + setB.size - intersection;
+  return intersection / union;
+}
+
+function assessCanadianStatus(chain) {
+  if (!chain || chain.length === 0) {
+    return { status: 'maybe', label: 'No ownership data found', confidence: 'none', flag: '❓' };
+  }
+
+  const topCompany = chain[chain.length - 1];
+  const directCompany = chain[0];
+
+  // If the brand itself is Canadian
+  if (directCompany.isCanadian) {
+    if (chain.length === 1) {
+      return { status: 'yes', label: 'Canadian-owned', confidence: 'high', flag: '🇨🇦' };
+    }
+    // Brand is Canadian but owned by foreign parent
+    if (topCompany.isUS) {
+      return { status: 'no', label: `Canadian brand, owned by US parent (${topCompany.name})`, confidence: 'medium', flag: '🇺🇸' };
+    }
+    if (!topCompany.isCanadian) {
+      const c = topCompany.country || 'foreign';
+      return { status: 'maybe', label: `Canadian brand, owned by ${c} parent`, confidence: 'medium', flag: '🌍' };
+    }
+    return { status: 'yes', label: 'Canadian-owned (fully Canadian chain)', confidence: 'high', flag: '🇨🇦' };
+  }
+
+  // Brand is not Canadian
+  if (directCompany.isUS) {
+    return { status: 'no', label: `US-owned (${directCompany.name})`, confidence: 'high', flag: '🇺🇸' };
+  }
+
+  // Check if any parent in the chain is Canadian
+  const canadianParent = chain.find(c => c.isCanadian);
+  if (canadianParent && chain.length > 1) {
+    return { status: 'maybe', label: `Foreign brand, ${canadianParent.name} (Canadian) in ownership chain`, confidence: 'low', flag: '🇨🇦' };
+  }
+
+  // Foreign, non-US
+  const country = directCompany.country || 'unknown';
+  return { status: 'maybe', label: `Foreign-owned (${country})`, confidence: 'medium', flag: '🌍' };
+}
+
+// ── Render ownership chain in result card ──────────────────────
+
+function renderOwnershipChain(chain) {
+  if (!chain || chain.length <= 1) return '';
+
+  let html = '<div class="ownership-chain">';
+  html += '<h4>Ownership Chain</h4>';
+
+  chain.forEach((item, i) => {
+    const flag = item.isCanadian ? '🇨🇦' : item.isUS ? '🇺🇸' : item.country ? '🌍' : '❓';
+    const countryText = item.country ? ` — ${item.country}` : '';
+    const hqText = item.hq && item.hq !== item.country ? `, HQ: ${item.hq}` : '';
+
+    html += `<div class="chain-item">
+      <span class="chain-flag">${flag}</span>
+      <span class="chain-name">${escapeHtml(item.name)}</span>
+      <span class="chain-detail">${countryText}${hqText}</span>
+    </div>`;
+
+    if (i < chain.length - 1) {
+      html += `<div class="chain-arrow">↓ owned by</div>`;
+    }
+  });
+
+  html += '</div>';
+  return html;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BRAND NAME SEARCH
+// ═══════════════════════════════════════════════════════════════
+async function searchBrand() {
+  const input = document.getElementById('brandSearch');
+  const term = input.value.trim();
+  if (!term) return;
+
+  const area = document.getElementById('resultArea');
+  area.innerHTML = `<div style="text-align:center;padding:20px;color:#6b7280"><span class="spinner"></span> Searching for "${escapeHtml(term)}"...</div>`;
+
+  try {
+    let chain = null;
+    let ownershipSource = 'not found';
+
+    // Step 1: Check static brand database
+    const dbEntry = lookupBrandDb(term);
+    if (dbEntry) {
+      area.innerHTML = `<div style="text-align:center;padding:20px;color:#6b7280"><span class="spinner"></span> Found "${escapeHtml(dbEntry.company)}" — tracing ownership via GLEIF...</div>`;
+      chain = await buildChainFromBrandDb(term, dbEntry);
+      ownershipSource = 'Brand DB + GLEIF';
+    }
+
+    // Step 2: If not in brand DB, search GLEIF directly
+    if (!chain || chain.length === 0) {
+      area.innerHTML = `<div style="text-align:center;padding:20px;color:#6b7280"><span class="spinner"></span> Searching GLEIF for "${escapeHtml(term)}"...</div>`;
+      chain = await buildChainFromGleifSearch(term);
+      ownershipSource = 'GLEIF';
+    }
+
+    if (!chain || chain.length === 0) {
+      area.innerHTML = `<div class="result-card">
+        <div class="canada-badge maybe"><span class="flag">❓</span> No ownership data</div>
+        <div class="product-name">${escapeHtml(term)}</div>
+        <div class="result-detail">This brand wasn't found in our database or GLEIF. Try the parent company name (e.g. "Coca-Cola Company" instead of "Fanta").</div>
+        <div class="data-source">Source: ${ownershipSource}</div>
+      </div>`;
+      return;
+    }
+
+    renderBrandResult(term, chain, ownershipSource);
+  } catch (err) {
+    console.error('Brand search error:', err);
+    showError(`Search failed: ${err.message}`);
+  }
+}
+
+
+function renderBrandResult(searchTerm, chain, ownershipSource) {
+  const area = document.getElementById('resultArea');
+  const status = assessCanadianStatus(chain);
+  const badgeClass = status.status === 'yes' ? 'yes' : status.status === 'no' ? 'no' : 'maybe';
+  const chainHtml = renderOwnershipChain(chain);
+
+  area.innerHTML = `<div class="result-card">
+    <div class="canada-badge ${badgeClass}">
+      <span class="flag">${status.flag}</span> ${escapeHtml(status.label)}
+    </div>
+    <div class="product-name">${escapeHtml(chain[0].name)}</div>
+    <div class="result-detail"><strong>Searched:</strong> "${escapeHtml(searchTerm)}"</div>
+    <div class="result-detail"><strong>Confidence:</strong> ${status.confidence}</div>
+    ${chainHtml}
+    <div id="aiAltSlot"></div>
+    <div class="data-source">Data: ${escapeHtml(ownershipSource)}</div>
+  </div>`;
+
+  // Fetch AI alternatives for any non-Canadian result
+  if (status.status !== 'yes') {
+    fetchAiAlternatives(searchTerm, '');
+  }
+}
+
+// ── AI-powered alternatives via Cloudflare Worker → Gemini ──────
+async function fetchAiAlternatives(brand, category) {
+  const slot = document.getElementById('aiAltSlot');
+  if (!slot) return;
+
+  slot.innerHTML = `<div class="alternative-suggest" style="opacity:0.7">
+    <h4>🍁 Alternatives</h4>
+    <div class="alt-item"><span class="spinner"></span> Finding alternatives...</div>
+  </div>`;
+
+  try {
+    const resp = await fetch('https://truenorth-gemini-proxy.rupertclaw.workers.dev', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ brand, category }),
+    });
+
+    if (!resp.ok) {
+      slot.innerHTML = '';
+      return;
+    }
+
+    const data = await resp.json();
+    const aiAlts = data.alternatives || [];
+
+    if (aiAlts.length === 0) {
+      slot.innerHTML = '';
+      return;
+    }
+
+    const flagFor = (origin) => {
+      const o = (origin || '').toLowerCase();
+      if (o.includes('canada')) return '🇨🇦';
+      if (o.includes('germany')) return '🇩🇪';
+      if (o.includes('france')) return '🇫🇷';
+      if (o.includes('sweden')) return '🇸🇪';
+      if (o.includes('netherlands') || o.includes('dutch')) return '🇳🇱';
+      if (o.includes('switzerland')) return '🇨🇭';
+      if (o.includes('italy')) return '🇮🇹';
+      if (o.includes('spain')) return '🇪🇸';
+      if (o.includes('japan')) return '🇯🇵';
+      if (o.includes('australia')) return '🇦🇺';
+      if (o.includes('new zealand')) return '🇳🇿';
+      if (o.includes('uk') || o.includes('britain') || o.includes('united kingdom')) return '🇬🇧';
+      if (o.includes('ireland')) return '🇮🇪';
+      if (o.includes('denmark')) return '🇩🇰';
+      if (o.includes('norway')) return '🇳🇴';
+      if (o.includes('finland')) return '🇫🇮';
+      if (o.includes('belgium')) return '🇧🇪';
+      return '🌍';
+    };
+
+    const heading = '🍁 Non-US Alternatives';
+
+    slot.innerHTML = `<div class="alternative-suggest">
+      <h4>${heading}</h4>
+      ${aiAlts.map(a => `<div class="alt-item"><strong>${flagFor(a.origin)} ${escapeHtml(a.name)}</strong> — ${escapeHtml(a.note)}</div>`).join('')}
+    </div>`;
+  } catch (err) {
+    // Silent fail — just don't show alternatives
+    slot.innerHTML = '';
+  }
+}
+
+// ── Product Data Lookup (with OpenBeautyFacts fallback) ───────
 async function lookupProduct(barcode) {
   const results = [];
 
@@ -487,10 +1484,33 @@ async function lookupProduct(barcode) {
     }
   } catch (e) { console.log('UPC error:', e); }
 
+  // 3. OpenBeautyFacts (cosmetics, personal care)
+  try {
+    const obfResp = await fetch(`https://world.openbeautyfacts.org/api/v2/product/${barcode}.json?fields=product_name,generic_name,brands,brand_owner,image_front_url,image_url,quantity,countries,manufacturing_places,origins,categories`);
+    if (obfResp.ok) {
+      const obfData = await obfResp.json();
+      if (obfData.status === 1 && obfData.product) {
+        const p = obfData.product;
+        results.push({
+          source: "Open Beauty Facts",
+          name: p.product_name || p.generic_name || "",
+          brand: p.brands || "",
+          brandOwner: p.brand_owner || "",
+          image: p.image_front_url || p.image_url || "",
+          quantity: p.quantity || "",
+          countries: p.countries || "",
+          manufacturing: p.manufacturing_places || "",
+          origins: p.origins || "",
+          categories: p.categories || "",
+          sourceUrl: `https://world.openbeautyfacts.org/product/${barcode}`,
+        });
+      }
+    }
+  } catch (e) { console.log("OBF error:", e); }
+
   return results;
 }
 
-// ── Rendering ─────────────────────────────────────────────────
 const resultsDiv = document.getElementById('results');
 const scanHistory = [];
 
@@ -508,7 +1528,7 @@ function escapeHtml(s) {
   return div.innerHTML;
 }
 
-function renderResult(barcode, productData) {
+function renderResult(barcode, productData, chain) {
   const gs1 = gs1Lookup(barcode);
   const confidence = getConfidence(gs1.country, productData[0]);
 
@@ -571,6 +1591,14 @@ function renderResult(barcode, productData) {
     html += '</div>';
   }
 
+
+  // ── CANADIAN STATUS badge (from GLEIF chain) ──
+  if (chain && chain.length > 0) {
+    const status = assessCanadianStatus(chain);
+    const badgeClass = status.status === 'yes' ? 'yes' : status.status === 'no' ? 'no' : 'maybe';
+    html += `<div class="canada-badge ${badgeClass}"><span class="flag">${status.flag}</span> ${escapeHtml(status.label)}</div>`;
+  }
+
   // ── OWNERSHIP section ──
   const hasOwnership = (off && (off.brandOrigin || off.brandCompany || off.wikiOwner || off.wikiDescription || off.wikiHq || off.wikiFounded)) || (primary.brand);
   if (hasOwnership) {
@@ -615,6 +1643,30 @@ function renderResult(barcode, productData) {
 
     html += '</div>';
   }
+
+
+  // ── GLEIF OWNERSHIP CHAIN ──
+  if (chain && chain.length > 1) {
+    html += '<div class="gleif-chain">';
+    html += '<h4>Ownership Chain (GLEIF)</h4>';
+    chain.forEach((item, i) => {
+      const flag = item.isCanadian ? '🇨🇦' : item.isUS ? '🇺🇸' : item.country ? '🌍' : '❓';
+      const countryText = item.country ? ` — ${escapeHtml(item.country)}` : '';
+      const hqText = item.hq && item.hq !== item.country ? `, HQ: ${escapeHtml(item.hq)}` : '';
+      html += `<div class="chain-item">`;
+      html += `<span class="chain-flag">${flag}</span>`;
+      html += `<span class="chain-name">${escapeHtml(item.name)}</span>`;
+      html += `<span class="chain-detail">${countryText}${hqText}</span>`;
+      html += `</div>`;
+      if (i < chain.length - 1) {
+        html += `<div class="chain-arrow">↓ owned by</div>`;
+      }
+    });
+    html += '</div>';
+  }
+
+  // ── AI ALTERNATIVES slot ──
+  html += '<div id="aiAltSlot"></div>';
 
   // ── ORIGIN section ──
   html += '<div class="detail-section">';
@@ -786,6 +1838,17 @@ function renderResult(barcode, productData) {
   }
 
   resultsDiv.innerHTML = html;
+
+  // Fetch AI alternatives for non-Canadian results
+  if (chain && chain.length > 0) {
+    const status = assessCanadianStatus(chain);
+    if (status.status !== 'yes') {
+      const brandName = (primary.brand || '').split(',')[0].trim();
+      const category = (off && off.categories) ? off.categories.split(',')[0].trim() : '';
+      fetchAiAlternatives(brandName, category);
+    }
+  }
+
 }
 
 function showNoResult(barcode) {
@@ -805,13 +1868,23 @@ function showError(msg) {
   resultsDiv.innerHTML = `<div class="error-card">${escapeHtml(msg)}</div>`;
 }
 
-// ── Barcode Scanning ──────────────────────────────────────────
+
+
+
 let html5Qr = null;
 let currentCamera = 'environment';
 let scanning = false;
 
 async function startScanning() {
   if (scanning) return;
+
+  // Detect in-app browsers (Facebook, Instagram, LinkedIn, etc.) — they block camera access
+  const inAppBrowser = /FBAN|FBAV|Instagram|LinkedInApp|Snapchat|Twitter|TikTok/i.test(navigator.userAgent);
+  if (inAppBrowser) {
+    showError('This browser blocks camera access. Tap the menu icon (⋮) at the top right and choose "Open in external browser" to scan barcodes.');
+    return;
+  }
+
   try {
     document.getElementById('startBtn').style.display = 'none';
     document.getElementById('stopBtn').style.display = 'flex';
@@ -820,17 +1893,30 @@ async function startScanning() {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const hasBarcodeDetector = 'BarcodeDetector' in window;
 
-    // Use native BarcodeDetector only on non-iOS browsers that support it
-    if (hasBarcodeDetector && !isIOS) {
+    // Debug panel for iOS diagnostics
+    const dbg = document.getElementById('iosDebug');
+    if (dbg) {
+      dbg.style.display = 'block';
+      dbg.innerHTML = `Browser: ${navigator.userAgent.substring(0,60)}<br>iOS=${isIOS}, BD=${hasBarcodeDetector}<br>HTTPS=${location.protocol === 'https:'}<br>mediaDevices=${!!navigator.mediaDevices}<br>`;
+    }
+
+    // Use native BarcodeDetector when available (iOS 18.4+, Chrome, Edge)
+    if (hasBarcodeDetector) {
+      if (dbg) dbg.innerHTML += '→ Using native BarcodeDetector<br>';
       await startNativeScanner();
       return;
     }
 
     // Fallback to html5-qrcode (iOS Safari, Firefox, older browsers)
+    if (dbg) dbg.innerHTML += '→ Using html5-qrcode fallback<br>';
     await startHtml5Scanner();
+    if (dbg) dbg.innerHTML += '→ html5-qrcode started OK<br>';
 
   } catch (err) {
     console.error('Scanner start error:', err);
+    const dbg = document.getElementById('iosDebug');
+    if (dbg) dbg.innerHTML += `→ ERROR: ${err.name || 'unknown'}: ${err.message || 'no message'}<br>`;
+    if (dbg && err.stack) dbg.innerHTML += `→ Stack: ${String(err.stack).substring(0, 120)}<br>`;
     let msg = 'Could not access camera. Make sure you are on HTTPS and have granted camera permissions.';
     if (err.name === 'NotAllowedError') {
       msg = 'Camera access denied. Go to Settings → Safari → Camera and allow access for this website.';
@@ -928,47 +2014,60 @@ async function startNativeScanner() {
 
 // html5-qrcode fallback (Safari iOS, Firefox, older browsers)
 async function startHtml5Scanner() {
-  // html5-qrcode needs its own container, so we use it differently
-  // We'll hide the video element and let html5-qrcode create its own
-  document.getElementById('video').style.display = 'none';
+  const dbg = document.getElementById('iosDebug');
 
-  // Hide overlay while html5-qrcode runs (it has its own UI)
-  document.querySelector('.scan-overlay').style.display = 'none';
+  // Hide native scanner elements (null-safe)
+  const vid = document.getElementById('video');
+  if (vid) vid.style.display = 'none';
+  const overlay = document.querySelector('.scan-overlay');
+  if (overlay) overlay.style.display = 'none';
 
-  html5Qr = new Html5Qrcode('scannerWrap', {
-    experimentalFeatures: { useBarCodeDetectorIfSupported: false },
-    verbose: false,
+  // Create a clean dedicated container for html5-qrcode
+  const wrap = document.getElementById('scannerWrap');
+  const h5container = document.createElement('div');
+  h5container.id = 'html5qr-container';
+  h5container.style.cssText = 'width:100%; aspect-ratio:1.333; max-height:380px; background:#000; position:relative;';
+  wrap.appendChild(h5container);
+
+  if (dbg) dbg.innerHTML += '→ Creating Html5Qrcode instance<br>';
+  html5Qr = new Html5Qrcode('html5qr-container', {
+    experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+    verbose: true,
   });
 
+  // Fixed qrbox — small enough to fit any phone screen, wide for EAN barcodes
+  // EAN-13 barcodes are ~1.5cm tall x 3.7cm wide, so wide+short scan box
   const config = {
-    fps: 10,
-    qrbox: { width: 250, height: 180 },
+    fps: 15,
+    qrbox: { width: 250, height: 120 },
     aspectRatio: 1.333,
     formatsToSupport: [
       Html5QrcodeSupportedFormats.EAN_13,
       Html5QrcodeSupportedFormats.EAN_8,
       Html5QrcodeSupportedFormats.UPC_A,
       Html5QrcodeSupportedFormats.UPC_E,
-      Html5QrcodeSupportedFormats.CODE_128,
-      Html5QrcodeSupportedFormats.CODE_39,
     ],
   };
 
-  // Require multiple consecutive reads to prevent false positives
   let lastRead = null;
   let readCount = 0;
-  const REQUIRED = 3;
+  const REQUIRED = 2;
+
+  if (dbg) dbg.innerHTML += '→ Calling html5Qr.start()<br>';
+
+  // Minimal constraints — iOS Safari chokes on explicit resolution requests
+  const videoConstraints = { facingMode: 'environment' };
 
   await html5Qr.start(
-    { facingMode: 'environment' },
+    videoConstraints,
     config,
     (decodedText) => {
-      // Validate: digits only, reasonable length
       if (!/^\d{8,14}$/.test(decodedText)) {
         lastRead = null;
         readCount = 0;
         return;
       }
+      if (dbg) dbg.innerHTML += `→ Read: ${decodedText} (count ${readCount + 1})<br>`;
       if (decodedText === lastRead) {
         readCount++;
       } else {
@@ -980,9 +2079,15 @@ async function startHtml5Scanner() {
         processBarcode(decodedText);
       }
     },
-    (err) => { /* per-frame failure, ignore */ }
+    (err) => {
+      if (dbg && !dbg.dataset.errLogged) {
+        dbg.innerHTML += `→ Frame err: ${String(err).substring(0, 80)}<br>`;
+        dbg.dataset.errLogged = '1';
+      }
+    }
   );
   scanning = true;
+  if (dbg) dbg.innerHTML += '→ html5-qrcode started OK<br>';
 }
 
 function stopScanning() {
@@ -990,7 +2095,7 @@ function stopScanning() {
 
   // Stop native
   const video = document.getElementById('video');
-  if (video.srcObject) {
+  if (video && video.srcObject) {
     video.srcObject.getTracks().forEach(t => t.stop());
     video.srcObject = null;
   }
@@ -1000,12 +2105,20 @@ function stopScanning() {
     html5Qr.stop().then(() => {
       html5Qr.clear();
       html5Qr = null;
-      document.getElementById('video').style.display = 'block';
-      document.querySelector('.scan-overlay').style.display = 'block';
+      const vid = document.getElementById('video');
+      if (vid) vid.style.display = 'block';
+      const overlay = document.querySelector('.scan-overlay');
+      if (overlay) overlay.style.display = 'block';
+      const hc = document.getElementById('html5qr-container');
+      if (hc) hc.remove();
     }).catch(() => {
       html5Qr = null;
-      document.getElementById('video').style.display = 'block';
-      document.querySelector('.scan-overlay').style.display = 'block';
+      const vid = document.getElementById('video');
+      if (vid) vid.style.display = 'block';
+      const overlay = document.querySelector('.scan-overlay');
+      if (overlay) overlay.style.display = 'block';
+      const hc = document.getElementById('html5qr-container');
+      if (hc) hc.remove();
     });
   }
 
@@ -1024,6 +2137,8 @@ async function switchCamera() {
     setTimeout(() => startScanning(), 300);
   }
 }
+
+// ── Main lookup flow ─────────────────────────────────────────
 
 // ── Main lookup flow ─────────────────────────────────────────
 async function processBarcode(barcode) {
@@ -1047,11 +2162,35 @@ async function processBarcode(barcode) {
 
   try {
     const productData = await lookupProduct(barcode);
+    
     if (productData.length > 0) {
-      renderResult(barcode, productData);
+      // Extract brand name for GLEIF ownership tracing
+      const off = productData.find(p => p.source === 'Open Food Facts');
+      const obf = productData.find(p => p.source === 'Open Beauty Facts');
+      const upc = productData.find(p => p.source === 'UPCitemdb');
+      const primary = off || obf || upc || productData[0];
+      let brandName = (primary.brand || '').split(',')[0].trim();
+      
+      // Fallback: extract brand from product name keywords
+      if ((!brandName || brandName === 'Unknown') && off) {
+        brandName = extractBrandFromProduct(off);
+      }
+      
+      // Trace ownership via GLEIF
+      let chain = null;
+      if (brandName && brandName !== 'Unknown') {
+        const dbEntry = lookupBrandDb(brandName);
+        if (dbEntry) {
+          chain = await buildChainFromBrandDb(brandName, dbEntry);
+        }
+        if (!chain || chain.length === 0) {
+          chain = await buildChainFromGleifSearch(brandName);
+        }
+      }
+      
+      renderResult(barcode, productData, chain);
       
       // After initial render, enrich with web search from Worker (no CORS issues)
-      const off = productData.find(p => p.source === 'Open Food Facts');
       if (off && (off.name || off.brand)) {
         try {
           const params = new URLSearchParams();
@@ -1069,7 +2208,7 @@ async function processBarcode(barcode) {
               off.brandOrigin = enrichData.brandOrigin;
               off.brandCompany = enrichData.brandCompany;
             }
-            renderResult(barcode, productData);  // re-render with enriched data
+            renderResult(barcode, productData, chain);  // re-render with enriched data
           }
         } catch (e) { /* enrichment failed, keep initial render */ }
       }
@@ -1091,7 +2230,137 @@ function lookupManual() {
   }
 }
 
-// ── PWA install prompt ────────────────────────────────────────
+
+// ═══════════════════════════════════════════════════════════════
+// TECH ALTERNATIVES DATABASE (curated)
+// ═══════════════════════════════════════════════════════════════
+const techAlternatives = [
+  // Cloud Storage
+  { us: 'Google Drive', ca: 'Filen', url: 'https://filen.io', desc: 'Zero-knowledge encrypted cloud storage, based in Ontario', cat: 'cloud', tags: ['encrypted', 'privacy', 'SaaS'] },
+  { us: 'Dropbox', ca: 'Filen', url: 'https://filen.io', desc: 'Encrypted cloud storage alternative, Ontario-based', cat: 'cloud', tags: ['encrypted', 'privacy'] },
+  { us: 'iCloud', ca: 'Filen', url: 'https://filen.io', desc: 'Canadian encrypted cloud storage', cat: 'cloud', tags: ['encrypted', 'privacy'] },
+  { us: 'OneDrive', ca: 'Jolicloud', url: 'https://jolicloud.com', desc: 'Personal cloud storage, Quebec-based', cat: 'cloud', tags: ['personal'] },
+  { us: 'AWS S3', ca: 'Wasabi', url: 'https://wasabi.com', desc: 'S3-compatible storage, lower cost (US company but Toronto data centre)', cat: 'cloud', tags: ['enterprise', 'S3'] },
+  { us: 'Backblaze', ca: 'Storadera', url: 'https://storadera.com', desc: 'S3-compatible storage, EU-based alternative', cat: 'cloud', tags: ['enterprise'] },
+
+  // Video / Meetings
+  { us: 'Zoom', ca: 'Eyre Canada', url: 'https://eyrecanada.ca/', desc: 'Canadian sovereign meeting platform, data stays in Canada', cat: 'video', tags: ['sovereign', 'secure'] },
+  { us: 'Google Meet', ca: 'Eyre Canada', url: 'https://eyrecanada.ca/', desc: 'Canadian video conferencing, no US data exposure', cat: 'video', tags: ['sovereign'] },
+  { us: 'Microsoft Teams', ca: 'Eyre Canada', url: 'https://eyrecanada.ca/', desc: 'Sovereign Canadian meeting platform', cat: 'video', tags: ['enterprise'] },
+  { us: 'Webex', ca: 'Eyre', url: 'https://eyre.ai/canada/', desc: 'Canadian secure meeting platform', cat: 'video', tags: ['secure'] },
+
+  // AI Tools
+  { us: 'ChatGPT', ca: 'Cohere', url: 'https://cohere.com', desc: 'Toronto-based AI, enterprise LLM platform', cat: 'ai', tags: ['LLM', 'enterprise', 'API'] },
+  { us: 'OpenAI API', ca: 'Cohere', url: 'https://cohere.com', desc: 'Canadian LLM API, Toronto-based', cat: 'ai', tags: ['API', 'LLM'] },
+  { us: 'Claude (Anthropic)', ca: 'Cohere', url: 'https://cohere.com', desc: 'Canadian AI alternative for enterprise', cat: 'ai', tags: ['LLM'] },
+  { us: 'Google Gemini', ca: 'Cohere', url: 'https://cohere.com', desc: 'Toronto-based AI platform', cat: 'ai', tags: ['LLM', 'enterprise'] },
+  { us: 'Hugging Face', ca: 'Cohere', url: 'https://cohere.com', desc: 'Canadian AI model platform', cat: 'ai', tags: ['models'] },
+  { us: 'Perplexity', ca: 'Clusivity', url: 'https://clusivity.com', desc: 'Canadian AI search and knowledge tool', cat: 'ai', tags: ['search'] },
+
+  // Payments
+  { us: 'Stripe', ca: 'Helcim', url: 'https://helcim.com', desc: 'Calgary-based payment processor, transparent pricing', cat: 'payments', tags: ['merchant', 'transparent pricing'] },
+  { us: 'PayPal', ca: 'Helcim', url: 'https://helcim.com', desc: 'Canadian payment processing, Calgary-based', cat: 'payments', tags: ['merchant'] },
+  { us: 'Square', ca: 'Helcim', url: 'https://helcim.com', desc: 'Canadian POS and payment processing', cat: 'payments', tags: ['POS', 'merchant'] },
+  { us: 'Venmo', ca: 'Wealthsimple Cash', url: 'https://wealthsimple.com', desc: 'Canadian peer-to-peer payments, Toronto-based', cat: 'payments', tags: ['P2P', 'free'] },
+  { us: 'Cash App', ca: 'Wealthsimple Cash', url: 'https://wealthsimple.com', desc: 'Canadian money transfers, no fees', cat: 'payments', tags: ['P2P'] },
+
+  // Productivity
+  { us: 'Notion', ca: 'Bizby', url: 'https://bizby.ca/', desc: 'Canadian AI whiteboard for teams, real-time collaboration', cat: 'productivity', tags: ['collaboration', 'whiteboard'] },
+  { us: 'Slack', ca: 'GroupLogic', url: 'https://grouplogic.ca', desc: 'Canadian team communication platform', cat: 'productivity', tags: ['chat', 'teams'] },
+  { us: 'Asana', ca: 'Breeze', url: 'https://breeze.pm', desc: 'Canadian project management, simple and focused', cat: 'productivity', tags: ['PM'] },
+  { us: 'Trello', ca: 'Breeze', url: 'https://breeze.pm', desc: 'Canadian project management alternative', cat: 'productivity', tags: ['PM', 'kanban'] },
+  { us: 'Monday.com', ca: 'Breeze', url: 'https://breeze.pm', desc: 'Canadian PM tool', cat: 'productivity', tags: ['PM'] },
+  { us: 'Google Docs', ca: 'CryptPad', url: 'https://cryptpad.fr', desc: 'Encrypted collaborative docs (EU-based, privacy-first)', cat: 'productivity', tags: ['encrypted', 'docs'] },
+  { us: 'Office 365', ca: 'OnlyOffice', url: 'https://onlyoffice.com', desc: 'Self-hostable office suite alternative', cat: 'productivity', tags: ['docs', 'self-host'] },
+
+  // Social
+  { us: 'Twitter/X', ca: 'Gander Social', url: 'https://gandersocial.ca/', desc: 'Canadian social media platform, positivity-focused', cat: 'social', tags: ['microblog'] },
+  { us: 'Facebook', ca: 'Gander Social', url: 'https://gandersocial.ca/', desc: 'Canadian social network alternative', cat: 'social', tags: ['social'] },
+  { us: 'Instagram', ca: 'Gander Social', url: 'https://gandersocial.ca/', desc: 'Canadian social platform', cat: 'social', tags: ['social'] },
+  { us: 'Reddit', ca: 'Lemmy.ca', url: 'https://lemmy.ca', desc: 'Canadian-hosted federated community platform', cat: 'social', tags: ['federated', 'community'] },
+  { us: 'Discord', ca: 'Revolt', url: 'https://revolt.chat', desc: 'Privacy-focused chat, self-hostable', cat: 'social', tags: ['chat', 'self-host'] },
+
+  // Email
+  { us: 'Gmail', ca: 'Tuta (Tutanota)', url: 'https://tuta.com', desc: 'Encrypted email, privacy-first (EU-based)', cat: 'email', tags: ['encrypted', 'privacy'] },
+  { us: 'Outlook', ca: 'Posteo', url: 'https://posteo.de', desc: 'Privacy-first email, no tracking (EU-based)', cat: 'email', tags: ['privacy', 'no-ads'] },
+  { us: 'Yahoo Mail', ca: 'Fastmail', url: 'https://fastmail.com', desc: 'Privacy-focused email (AU-based, no US jurisdiction)', cat: 'email', tags: ['privacy'] },
+  { us: 'ProtonMail', ca: 'Posteo', url: 'https://posteo.de', desc: 'Anonymous email, no tracking', cat: 'email', tags: ['anonymous'] },
+
+  // Security / VPN
+  { us: 'NordVPN', ca: 'Windscribe', url: 'https://windscribe.com', desc: 'Toronto-based VPN, generous free tier', cat: 'security', tags: ['VPN', 'Toronto', 'free tier'] },
+  { us: 'ExpressVPN', ca: 'Windscribe', url: 'https://windscribe.com', desc: 'Canadian VPN, Toronto-based', cat: 'security', tags: ['VPN'] },
+  { us: 'LastPass', ca: '1Password', url: 'https://1password.com', desc: 'Toronto-based password manager', cat: 'security', tags: ['password manager', 'Toronto'] },
+  { us: 'Bitwarden', ca: '1Password', url: 'https://1password.com', desc: 'Canadian password manager, Toronto-based', cat: 'security', tags: ['password manager'] },
+  { us: 'Cloudflare', ca: 'Windscribe', url: 'https://windscribe.com', desc: 'Canadian privacy tools', cat: 'security', tags: ['privacy'] },
+];
+
+let currentFilter = 'all';
+
+function renderTech() {
+  const grid = document.getElementById('techGrid');
+  const search = document.getElementById('techSearch').value.toLowerCase();
+  const filtered = techAlternatives.filter(t => {
+    const catMatch = currentFilter === 'all' || t.cat === currentFilter;
+    const searchMatch = !search || t.us.toLowerCase().includes(search) || t.ca.toLowerCase().includes(search) || t.desc.toLowerCase().includes(search) || t.tags.some(tag => tag.includes(search));
+    return catMatch && searchMatch;
+  });
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div style="text-align:center;padding:20px;color:#6b7280">No alternatives found. Try a different search.</div>';
+    return;
+  }
+
+  grid.innerHTML = filtered.map(t => `<div class="tech-card">
+    <div class="us-app">Instead of: <strong>${t.us}</strong></div>
+    <div class="ca-app">\u2192 ${t.ca}</div>
+    <div class="ca-desc">${t.desc}</div>
+    <div class="ca-tags">${t.tags.map(tag => `<span class="ca-tag">${tag}</span>`).join('')}</div>
+    <a href="${t.url}" target="_blank" rel="noopener" class="ca-link">Visit ${t.ca} \u2192</a>
+  </div>`).join('');
+}
+
+function setTechFilter(cat) {
+  currentFilter = cat;
+  document.querySelectorAll('.tech-chip').forEach(c => c.classList.toggle('active', c.dataset.cat === cat));
+  renderTech();
+}
+
+function filterTech() { renderTech(); }
+
+// Initial render
+renderTech();
+</script>
+</script>
+
+// ═══════════════════════════════════════════════════════════════
+// TAB / INPUT MODE SWITCHING
+// ═══════════════════════════════════════════════════════════════
+
+function setInputMode(mode) {
+  document.querySelectorAll('.input-mode-tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+  const barcodeMode = document.getElementById('barcodeMode');
+  const brandMode = document.getElementById('brandMode');
+  if (barcodeMode) barcodeMode.classList.toggle('hidden', mode !== 'barcode');
+  if (brandMode) brandMode.classList.toggle('hidden', mode !== 'brand');
+  if (mode !== 'barcode') stopScanning();
+  // Clear results when switching modes
+  if (mode === 'barcode') {
+    const br = document.getElementById('brandResults');
+    if (br) br.innerHTML = '';
+  } else {
+    const r = document.getElementById('results');
+    if (r) r.innerHTML = '<div class="no-result"><div class="emoji">⌨️</div><div class="msg">Type a brand name above</div><div class="sub">to check if it\'s Canadian-owned</div></div>';
+  }
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('.section').forEach(s => s.classList.toggle('active', s.id === 'section-' + tab));
+  if (tab !== 'scanner') stopScanning();
+  if (tab === 'tech') renderTech();
+}
+
+
 let deferredPrompt;
 const installBtn = document.getElementById('installBtn');
 
@@ -1148,6 +2417,11 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden && scanning) stopScanning();
 });
 </script>
+
+document.addEventListener('visibilitychange', () => {
+
+</script>
+
 <script>
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
