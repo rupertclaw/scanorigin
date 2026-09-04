@@ -884,14 +884,22 @@ const BRAND_DB = {
 // Tries exact match first, then partial/contains match.
 function lookupBrandDb(brandName) {
   if (!brandName) return null;
-  const normalized = brandName.toLowerCase().trim();
+  let normalized = brandName.toLowerCase().trim();
+  // OFF often returns curly apostrophes / accents ('Hellmann’s') that miss DB keys
+  normalized = normalized
+    .replace(/[\u2018\u2019\u02BC']/g, '')
+    .replace(/[\u00E9\u00E8\u00EA]/g, 'e')
+    .replace(/\s+/g, ' ');
 
-  // Exact match
+  // Exact match (keys normalized the same way: apostrophes stripped)
+  const normKey = (k) => k.toLowerCase().replace(/[\u2018\u2019\u02BC']/g, '').replace(/\s+/g, ' ');
   if (BRAND_DB[normalized]) return BRAND_DB[normalized];
+  if (BRAND_DB[normKey(brandName)]) return BRAND_DB[normKey(brandName)];
 
   // Partial match: check if any key is contained in the brand name
   for (const [key, val] of Object.entries(BRAND_DB)) {
-    if (normalized.includes(key) || key.includes(normalized)) {
+    const k = normKey(key);
+    if (normalized.includes(k) || k.includes(normalized)) {
       return val;
     }
   }
@@ -1871,14 +1879,17 @@ function renderResult(barcode, productData, chain) {
 
   resultsDiv.innerHTML = html;
 
-  // Fetch AI alternatives for non-Canadian results
+  // Fetch AI alternatives for non-Canadian results AND unknown-ownership
+  // results (previously gated on chain existing, so lookup misses got nothing)
+  const brandNameForAlts = (primary.brand || '').split(',')[0].trim();
+  const categoryForAlts = (off && off.categories) ? off.categories.split(',')[0].trim() : '';
+  let shouldFetchAlts = true;
   if (chain && chain.length > 0) {
     const status = assessCanadianStatus(chain);
-    if (status.status !== 'yes') {
-      const brandName = (primary.brand || '').split(',')[0].trim();
-      const category = (off && off.categories) ? off.categories.split(',')[0].trim() : '';
-      fetchAiAlternatives(brandName, category);
-    }
+    if (status.status === 'yes') shouldFetchAlts = false;
+  }
+  if (shouldFetchAlts && brandNameForAlts) {
+    fetchAiAlternatives(brandNameForAlts, categoryForAlts);
   }
 
 }
@@ -1906,6 +1917,7 @@ function showError(msg) {
 let html5Qr = null;
 let currentCamera = 'environment';
 let scanning = false;
+let autoStartFailed = false;
 
 async function startScanning() {
   if (scanning) return;
@@ -1952,6 +1964,7 @@ async function startScanning() {
     if (dbg) dbg.innerHTML += '→ html5-qrcode started OK<br>';
 
   } catch (err) {
+    autoStartFailed = true;
     console.error('Scanner start error:', err);
     const dbg = document.getElementById('iosDebug');
     if (dbg) dbg.innerHTML += `→ ERROR: ${err.name || 'unknown'}: ${err.message || 'no message'}<br>`;
@@ -2409,6 +2422,11 @@ function switchTab(tab) {
   document.querySelectorAll('.section').forEach(s => s.classList.toggle('active', s.id === 'section-' + tab));
   if (tab !== 'scanner') stopScanning();
   if (tab === 'tech') renderTech();
+  // Auto-start the camera when the scanner tab opens (camera permission
+  // prompt appears on first use; Start button remains as manual retry)
+  if (tab === 'scanner' && !scanning && !autoStartFailed) {
+    startScanning();
+  }
 }
 
 // Legacy shim — barcode/brand now live on separate tabs
