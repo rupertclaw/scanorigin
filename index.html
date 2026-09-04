@@ -1344,9 +1344,16 @@ async function fetchAiAlternatives(brand, category) {
   const slot = document.getElementById('aiAltSlot');
   if (!slot) return;
 
+  // Elapsed timer — Gemini can take 30-60s; show it's still working
+  const t0 = Date.now();
+  const timerId = setInterval(() => {
+    const el = document.getElementById('aiAltElapsed');
+    if (el) el.textContent = Math.round((Date.now() - t0) / 1000) + 's';
+  }, 1000);
+
   slot.innerHTML = `<div class="alternative-suggest" style="opacity:0.7">
     <h4>🍁 Alternatives</h4>
-    <div class="alt-item"><span class="spinner"></span> Finding alternatives...</div>
+    <div class="alt-item"><span class="spinner"></span> Finding alternatives... <span id="aiAltElapsed">0s</span></div>
   </div>`;
 
   try {
@@ -1354,10 +1361,15 @@ async function fetchAiAlternatives(brand, category) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ brand, category }),
+      signal: AbortSignal.timeout(90000),
     });
 
     if (!resp.ok) {
-      slot.innerHTML = '';
+      clearInterval(timerId);
+      slot.innerHTML = `<div class="alternative-suggest" style="opacity:0.7">
+        <h4>🍁 Alternatives</h4>
+        <div class="alt-item">Couldn't fetch alternatives. <a href="#" onclick="fetchAiAlternatives('${escapeHtml(brand).replace(/'/g, "\\'")}', '${escapeHtml(category).replace(/'/g, "\\'")}'); return false;">Retry</a></div>
+      </div>`;
       return;
     }
 
@@ -1365,9 +1377,12 @@ async function fetchAiAlternatives(brand, category) {
     const aiAlts = data.alternatives || [];
 
     if (aiAlts.length === 0) {
+      clearInterval(timerId);
       slot.innerHTML = '';
       return;
     }
+
+    clearInterval(timerId);
 
     const flagFor = (origin) => {
       const o = (origin || '').toLowerCase();
@@ -1398,8 +1413,16 @@ async function fetchAiAlternatives(brand, category) {
       ${aiAlts.map(a => `<div class="alt-item"><strong>${flagFor(a.origin)} ${escapeHtml(a.name)}</strong> — ${escapeHtml(a.note)}</div>`).join('')}
     </div>`;
   } catch (err) {
-    // Silent fail — just don't show alternatives
-    slot.innerHTML = '';
+    clearInterval(timerId);
+    if (err && err.name === 'TimeoutError') {
+      slot.innerHTML = `<div class="alternative-suggest" style="opacity:0.7">
+        <h4>🍁 Alternatives</h4>
+        <div class="alt-item">Timed out. <a href="#" onclick="fetchAiAlternatives('${escapeHtml(brand).replace(/'/g, "\\'")}', ''); return false;">Retry</a></div>
+      </div>`;
+    } else {
+      // Aborted (new search started) or network gone — clear silently
+      slot.innerHTML = '';
+    }
   }
 }
 
