@@ -349,6 +349,7 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:-a
   <div class="section" id="section-scanner">
     <div id="barcodeMode">
   <div class="controls">
+    <div id="scanError" style="display:none; background:rgba(255,107,107,.12); border:1px solid #ff6b6b; border-radius:8px; padding:10px 12px; margin:10px 0 0; font-size:14px; line-height:1.4; text-align:left; color:#ffb3b3;"></div>
     <button class="btn btn-primary" id="startBtn" onclick="startScanning()">📷 Start Scanner</button>
     <button class="btn btn-stop" id="stopBtn" onclick="stopScanning()">⏹ Stop</button>
     <button class="btn btn-secondary" id="switchBtn" onclick="switchCamera()" style="display:none;">🔄 Flip</button>
@@ -1920,6 +1921,13 @@ async function startScanning() {
     document.getElementById('startBtn').style.display = 'none';
     document.getElementById('stopBtn').style.display = 'flex';
 
+    // Immediate feedback: Chrome may silently reject if camera permission was
+    // previously blocked — user must see SOMETHING change on tap
+    const scanHintEarly = document.getElementById('scanHint');
+    if (scanHintEarly) scanHintEarly.textContent = 'Requesting camera access...';
+    const overlayEarly = document.querySelector('.scan-overlay');
+    if (overlayEarly) overlayEarly.style.display = 'block';
+
     // Detect iOS Safari (which has unreliable BarcodeDetector support)
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const hasBarcodeDetector = 'BarcodeDetector' in window;
@@ -1959,6 +1967,14 @@ async function startScanning() {
       msg += ' Error: ' + err.message;
     }
     showError(msg);
+    // Also surface the error inside the scanner itself — resultsDiv may be
+    // below the fold, making failures look like "nothing happened"
+    const hint = document.getElementById('scanHint');
+    if (hint) { hint.textContent = '⚠ ' + msg; hint.style.color = '#ff6b6b'; }
+    const errBox = document.getElementById('scanError');
+    if (errBox) { errBox.textContent = msg; errBox.style.display = 'block'; }
+    const overlayErr = document.querySelector('.scan-overlay');
+    if (overlayErr) overlayErr.style.display = 'block';
     resetButtons();
   }
 }
@@ -1984,6 +2000,9 @@ async function startNativeScanner() {
 
   // Visual feedback
   const scanHint = document.getElementById('scanHint');
+  scanHint.style.color = '';
+  const errBoxReset = document.getElementById('scanError');
+  if (errBoxReset) errBoxReset.style.display = 'none';
   const scanBox = document.querySelector('.scan-box');
 
   async function detect() {
