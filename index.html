@@ -315,7 +315,8 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:-a
   <!-- Nav tabs -->
   <div class="nav-tabs">
     <div class="nav-tab active" data-tab="home" onclick="switchTab('home')">Home</div>
-    <div class="nav-tab" data-tab="scanner" onclick="switchTab('scanner')">Scanner</div>
+    <div class="nav-tab" data-tab="scanner" onclick="switchTab('scanner')">Barcode Scanner</div>
+    <div class="nav-tab" data-tab="brand" onclick="switchTab('brand')">Brand Search</div>
     <div class="nav-tab" data-tab="tech" onclick="switchTab('tech')">Tech Alternatives</div>
   </div>
 
@@ -332,19 +333,14 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:-a
       <button class="cta-btn" onclick="switchTab('scanner')">Start Scanning</button>
     </div>
     <div class="feature-cards">
-      <div class="feature-card"><div class="icon">📷</div><h3>Barcode Scanner</h3><p>Scan any product barcode. Get product details, nutrition, ingredients, origin, and trace brand ownership through GLEIF.</p></div>
-      <div class="feature-card"><div class="icon">⌨️</div><h3>Brand Name Search</h3><p>Type any brand name to search GLEIF for its parent company, headquarters country, and full ownership chain. No barcode needed.</p></div>
-      <div class="feature-card"><div class="icon">💻</div><h3>Tech Alternatives</h3><p>Canadian alternatives to popular US apps and services. From cloud storage to video calls to AI tools.</p></div>
+      <div class="feature-card" onclick="switchTab('scanner')" style="cursor:pointer;"><div class="icon">📷</div><h3>Barcode Scanner</h3><p>Scan any product barcode. Get product details, nutrition, ingredients, origin, and trace brand ownership through GLEIF.</p></div>
+      <div class="feature-card" onclick="switchTab('brand')" style="cursor:pointer;"><div class="icon">⌨️</div><h3>Brand Name Search</h3><p>Type any brand name to search GLEIF for its parent company, headquarters country, and full ownership chain. No barcode needed.</p></div>
+      <div class="feature-card" onclick="switchTab('tech')" style="cursor:pointer;"><div class="icon">💻</div><h3>Tech Alternatives</h3><p>Canadian alternatives to popular US apps and services. From cloud storage to video calls to AI tools.</p></div>
     </div>
   </div>
 
   <!-- SCANNER section -->
   <div class="section" id="section-scanner">
-    <!-- Input mode tabs -->
-    <div class="input-mode-tabs">
-      <div class="input-mode-tab active" data-mode="barcode" onclick="setInputMode('barcode')">📷 Barcode Scanner</div>
-      <div class="input-mode-tab" data-mode="brand" onclick="setInputMode('brand')">⌨️ Brand Name Search</div>
-    </div>
     <div id="barcodeMode">
   <div class="controls">
     <button class="btn btn-primary" id="startBtn" onclick="startScanning()">📷 Start Scanner</button>
@@ -382,8 +378,19 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:-a
 
     </div> <!-- /barcodeMode -->
 
-    <!-- Brand name search mode -->
-    <div id="brandMode" class="hidden" style="padding:0 12px 8px;">
+    <!-- Barcode results -->
+  <div class="results" id="results">
+    <div class="no-result">
+      <div class="emoji">📱</div>
+      <div class="msg">Scan a product barcode</div>
+      <div class="sub">or type the number above to get started</div>
+    </div>
+  </div>
+  </div> <!-- /section-scanner -->
+
+  <!-- BRAND SEARCH section -->
+  <div class="section" id="section-brand">
+    <div id="brandMode" style="padding:0 12px 8px;">
       <div class="manual-input">
         <input type="text" id="brandSearch" placeholder="Type a brand name (e.g. Heinz, Loblaw, Maple Leaf)" onkeydown="if(event.key==='Enter')searchBrand()">
         <button onclick="searchBrand()">Search</button>
@@ -393,18 +400,9 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:-a
       </div>
     </div>
 
-    <!-- Barcode results -->
-  <div class="results" id="results">
-    <div class="no-result">
-      <div class="emoji">📱</div>
-      <div class="msg">Scan a product barcode</div>
-      <div class="sub">or type the number above to get started</div>
-    </div>
-  </div>
     <!-- Brand search results -->
     <div id="brandResults"></div>
-
-  </div> <!-- /section-scanner -->
+  </div> <!-- /section-brand -->
 
   <!-- TECH ALTERNATIVES section -->
   <div class="section" id="section-tech">
@@ -2363,25 +2361,6 @@ renderTech();
 // TAB / INPUT MODE SWITCHING
 // ═══════════════════════════════════════════════════════════════
 
-function setInputMode(mode) {
-  document.querySelectorAll('.input-mode-tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
-  const barcodeMode = document.getElementById('barcodeMode');
-  const brandMode = document.getElementById('brandMode');
-  if (barcodeMode) barcodeMode.classList.toggle('hidden', mode !== 'barcode');
-  if (brandMode) brandMode.classList.toggle('hidden', mode !== 'brand');
-  if (mode !== 'barcode') stopScanning();
-  // Clear results when switching modes
-  if (mode === 'barcode') {
-    const br = document.getElementById('brandResults');
-    if (br) br.innerHTML = '';
-    const r = document.getElementById('results');
-    if (r && (scanHistory.length === 0)) r.innerHTML = '<div class="no-result"><div class="emoji">📱</div><div class="msg">Scan a product barcode</div><div class="sub">or type the number above to get started</div></div>';
-  } else {
-    const r = document.getElementById('results');
-    if (r) r.innerHTML = '<div class="no-result"><div class="emoji">⌨️</div><div class="msg">Type a brand name above</div><div class="sub">to check if it\'s Canadian-owned</div></div>';
-  }
-}
-
 function switchTab(tab) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   document.querySelectorAll('.section').forEach(s => s.classList.toggle('active', s.id === 'section-' + tab));
@@ -2389,18 +2368,8 @@ function switchTab(tab) {
   if (tab === 'tech') renderTech();
 }
 
-
-let deferredPrompt;
-const installBtn = document.getElementById('installBtn');
-
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  installBtn.classList.remove('hidden');
-  if (typeof gtag === 'function') {
-    gtag('event', 'install_prompt_shown', { 'event_category': 'engagement' });
-  }
-});
+// Legacy shim — barcode/brand now live on separate tabs
+function setInputMode(mode) { switchTab(mode === 'brand' ? 'brand' : 'scanner'); }
 
 window.addEventListener('appinstalled', () => {
   installBtn.classList.add('hidden');
