@@ -1957,7 +1957,9 @@ async function startScanning() {
     if (dbg) dbg.innerHTML += `→ ERROR: ${err.name || 'unknown'}: ${err.message || 'no message'}<br>`;
     if (dbg && err.stack) dbg.innerHTML += `→ Stack: ${String(err.stack).substring(0, 120)}<br>`;
     let msg = 'Could not access camera. Make sure you are on HTTPS and have granted camera permissions.';
-    if (err.name === 'NotAllowedError') {
+    if (err.name === 'TimeoutError') {
+      msg = 'The camera never responded. This happens when the page is opened inside another app (Custom Tab), which blocks camera access. Open this site in Chrome directly: type or paste the address into Chrome, or tap the menu and choose Open in Chrome.';
+    } else if (err.name === 'NotAllowedError') {
       msg = 'Camera access denied. Go to Settings → Safari → Camera and allow access for this website.';
     } else if (err.name === 'NotFoundError') {
       msg = 'No camera found on this device.';
@@ -1980,11 +1982,24 @@ async function startScanning() {
 }
 
 // Native BarcodeDetector (Chrome Android, Samsung)
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, rej) => setTimeout(() => { const e = new Error(label); e.name = 'TimeoutError'; rej(e); }, ms))
+  ]);
+}
+
 async function startNativeScanner() {
   const video = document.getElementById('video');
-  const stream = await navigator.mediaDevices.getUserMedia({
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    throw new Error('This browser view cannot access the camera. If you opened this link from another app, open it in Chrome directly instead (tap the menu and choose Open in Chrome).');
+  }
+  // Custom Tabs (page opened via a link-tap from another app) silently block
+  // camera access — the permission prompt never appears. Detect the hang and
+  // tell the user how to escape instead of showing a black frame forever.
+  const stream = await withTimeout(navigator.mediaDevices.getUserMedia({
     video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
-  });
+  }), 10000, 'Camera did not respond within 10 seconds.');
   video.srcObject = stream;
   await video.play();
   scanning = true;
@@ -2108,7 +2123,7 @@ async function startHtml5Scanner() {
   // Minimal constraints — iOS Safari chokes on explicit resolution requests
   const videoConstraints = { facingMode: 'environment' };
 
-  await html5Qr.start(
+  await withTimeout(html5Qr.start(
     videoConstraints,
     config,
     (decodedText) => {
@@ -2135,7 +2150,7 @@ async function startHtml5Scanner() {
         dbg.dataset.errLogged = '1';
       }
     }
-  );
+  ), 10000, 'Camera did not respond within 10 seconds.');
   scanning = true;
   if (dbg) dbg.innerHTML += '→ html5-qrcode started OK<br>';
 }
