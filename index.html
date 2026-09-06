@@ -697,6 +697,7 @@ const BRAND_DB = {
   'unilever': { company: 'Unilever PLC', country: 'GB' },
   'hellmann\'s': { company: 'Unilever PLC', country: 'GB' },
   'hellmanns': { company: 'Unilever PLC', country: 'GB' },
+  'helmans': { company: 'Unilever PLC', country: 'GB' },
   'best foods': { company: 'Unilever PLC', country: 'GB' },
   'knorr': { company: 'Unilever PLC', country: 'GB' },
   'lipton': { company: 'Unilever PLC', country: 'GB' },
@@ -1358,9 +1359,10 @@ function renderBrandResult(searchTerm, chain, ownershipSource) {
 // Translate non-English ingredient text via Gemini proxy (6h server cache)
 async function translateIngredients(text) {
   const el = document.getElementById('ingredientsText');
+  const status = document.getElementById('translateStatus');
   if (!el) return;
   el.style.opacity = '0.6';
-  el.textContent = 'Translating...';
+  if (status) status.textContent = '🌐 Translating to English...';
   try {
     const resp = await fetch('https://truenorth-gemini-proxy.rupertclaw.workers.dev', {
       method: 'POST',
@@ -1372,9 +1374,11 @@ async function translateIngredients(text) {
     const data = await resp.json();
     el.style.opacity = '1';
     el.textContent = data.translation || 'Translation unavailable.';
+    if (status) status.textContent = '🌐 Translated from original language';
   } catch (e) {
     el.style.opacity = '1';
-    el.textContent = 'Translation failed. Original: ' + decodeURIComponent(text).substring(0, 300);
+    if (status) status.textContent = '🌐 Translation unavailable — showing original';
+    // Keep original text visible (don't overwrite with error message)
   }
 }
 
@@ -1807,7 +1811,7 @@ function renderResult(barcode, productData, chain) {
     html += `<div class="ingredients-text" id="ingredientsText">${escapeHtml(ing)}${off.ingredients.length > 300 ? '...' : ''}</div>`;
     if (off.ingredientsIsOriginal) {
       const ingForUrl = encodeURIComponent(off.ingredients.substring(0, 1500));
-      html += `<div style="margin-top:6px"><a href="#" onclick="translateIngredients('${ingForUrl}'); return false;" style="font-size:13px">🌐 Translate to English</a></div>`;
+      html += `<div style="margin-top:6px;font-size:13px;color:var(--muted)" id="translateStatus">🌐 Translating to English...</div>`;
     }
     html += '</div>';
   }
@@ -1933,6 +1937,12 @@ function renderResult(barcode, productData, chain) {
   }
   if (shouldFetchAlts && brandNameForAlts) {
     fetchAiAlternatives(brandNameForAlts, categoryForAlts);
+  }
+
+  // Auto-translate non-English ingredients
+  if (off && off.ingredientsIsOriginal) {
+    const ingForTranslate = encodeURIComponent(off.ingredients.substring(0, 1500));
+    setTimeout(() => translateIngredients(ingForTranslate), 500);
   }
 
 }
@@ -2308,6 +2318,16 @@ async function processBarcode(barcode) {
           chain = await buildChainFromGleifSearch(brandName);
         }
       }
+      // Fallback: OFF's brand_owner field (e.g. "Unilever" when brand is "Helmans")
+      if ((!chain || chain.length === 0) && off && off.brandOwner) {
+        const dbEntry = lookupBrandDb(off.brandOwner);
+        if (dbEntry) {
+          chain = await buildChainFromBrandDb(off.brandOwner, dbEntry);
+        }
+        if (!chain || chain.length === 0) {
+          chain = await buildChainFromGleifSearch(off.brandOwner);
+        }
+      }
       
       renderResult(barcode, productData, chain);
       
@@ -2475,39 +2495,52 @@ function switchTab(tab) {
 // Legacy shim — barcode/brand now live on separate tabs
 function setInputMode(mode) { switchTab(mode === 'brand' ? 'brand' : 'scanner'); }
 
+// ── PWA Install ──────────────────────────────────────────────
+const installBtn = document.getElementById('installBtn');
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  if (installBtn) installBtn.classList.remove('hidden');
+});
+
 window.addEventListener('appinstalled', () => {
-  installBtn.classList.add('hidden');
+  if (installBtn) installBtn.classList.add('hidden');
+  deferredPrompt = null;
   if (typeof gtag === 'function') {
     gtag('event', 'install_completed', { 'event_category': 'engagement' });
   }
 });
 
-installBtn.addEventListener('click', async () => {
-  if (deferredPrompt) {
-    // Android Chrome — fire the native install prompt
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      installBtn.classList.add('hidden');
-      if (typeof gtag === 'function') {
-        gtag('event', 'install_accepted', { 'event_category': 'engagement' });
+if (installBtn) {
+  installBtn.addEventListener('click', async () => {
+    if (deferredPrompt) {
+      // Android Chrome — fire the native install prompt
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        installBtn.classList.add('hidden');
+        if (typeof gtag === 'function') {
+          gtag('event', 'install_accepted', { 'event_category': 'engagement' });
+        }
+      } else {
+        if (typeof gtag === 'function') {
+          gtag('event', 'install_declined', { 'event_category': 'engagement' });
+        }
       }
+      deferredPrompt = null;
     } else {
-      if (typeof gtag === 'function') {
-        gtag('event', 'install_declined', { 'event_category': 'engagement' });
+      // Detect platform
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      if (isIOS) {
+        alert('To install on iPhone:\n\n1. Tap the Share button at the bottom of Safari\n2. Select "Add to Home Screen"');
+      } else {
+        alert('To install on Android:\n\nTap the browser menu in Chrome and select "Install app" or "Add to Home screen".');
       }
     }
-    deferredPrompt = null;
-  } else {
-    // Detect platform
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    if (isIOS) {
-      alert('To install on iPhone:\n\n1. Tap the Share button (⬆️) at the bottom of Safari\n2. Select "Add to Home Screen"');
-    } else {
-      alert('To install on Android:\n\nTap the browser menu (⋮) in Chrome and select "Install app" or "Add to Home screen".');
-    }
-  }
-});
+  });
+}
 
 // Hide button if already installed as standalone
 if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
