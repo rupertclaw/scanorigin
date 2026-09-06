@@ -314,7 +314,7 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:-a
       <div class="subtitle">Barcode scanner · product origin · Canadian alternatives</div>
     </div>
     <div class="header-right">
-      <button class="install-btn" id="installBtn">📲 Install</button>
+      <button class="install-btn hidden" id="installBtn">📲 Install</button>
     </div>
   </div>
 
@@ -2543,7 +2543,7 @@ if (installBtn) {
 }
 
 // Hide button if already installed as standalone
-if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+if (installBtn && (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true)) {
   installBtn.classList.add('hidden');
 }
 
