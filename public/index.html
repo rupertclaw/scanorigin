@@ -1810,7 +1810,6 @@ function renderResult(barcode, productData, chain) {
     const ing = off.ingredients.substring(0, 300);
     html += `<div class="ingredients-text" id="ingredientsText">${escapeHtml(ing)}${off.ingredients.length > 300 ? '...' : ''}</div>`;
     if (off.ingredientsIsOriginal) {
-      const ingForUrl = encodeURIComponent(off.ingredients.substring(0, 1500));
       html += `<div style="margin-top:6px;font-size:13px;color:var(--muted)" id="translateStatus">🌐 Translating to English...</div>`;
     }
     html += '</div>';
@@ -1941,7 +1940,7 @@ function renderResult(barcode, productData, chain) {
 
   // Auto-translate non-English ingredients
   if (off && off.ingredientsIsOriginal) {
-    const ingForTranslate = encodeURIComponent(off.ingredients.substring(0, 1500));
+    const ingForTranslate = off.ingredients.substring(0, 1500);
     setTimeout(() => translateIngredients(ingForTranslate), 500);
   }
 
@@ -2543,7 +2542,7 @@ if (installBtn) {
 }
 
 // Hide button if already installed as standalone
-if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+if (installBtn && (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true)) {
   installBtn.classList.add('hidden');
 }
 
