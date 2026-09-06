@@ -1,5 +1,5 @@
 // ScanOrigin Service Worker
-const CACHE_NAME = "scanorigin-v21";
+const CACHE_NAME = "scanorigin-v22";
 const ASSETS = [
   "./",
   "./index.html",
