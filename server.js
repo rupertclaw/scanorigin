@@ -11,7 +11,7 @@ app.use(cors());
 
 async function lookupOpenFoodFacts(barcode) {
   try {
-    const fields = 'product_name,generic_name,brands,brand_owner,image_front_url,image_url,quantity,countries,manufacturing_places,origins,ingredients_text,ingredients_analysis_tags,categories,nutriscore_grade,nova_group,nutriments,allergens,additives_tags,labels,labels_tags,stores,link';
+    const fields = 'product_name,product_name_en,generic_name,brands,brand_owner,image_front_url,image_url,quantity,countries,manufacturing_places,origins,ingredients_text,ingredients_text_en,ingredients_analysis_tags,categories,nutriscore_grade,nova_group,nutriments,allergens,additives_tags,labels,labels_tags,stores,link';
     const resp = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=${fields}`, {
       headers: { 'User-Agent': 'ScanOrigin/1.0 (contact@scanorigin.app)' },
     });
@@ -22,7 +22,7 @@ async function lookupOpenFoodFacts(barcode) {
       const nutriments = p.nutriments || {};
       return {
         source: 'Open Food Facts',
-        name: p.product_name || p.generic_name || '',
+        name: p.product_name_en || p.product_name || p.generic_name || '',
         brand: p.brands || '',
         brandOwner: p.brand_owner || '',
         image: p.image_front_url || p.image_url || '',
@@ -30,7 +30,8 @@ async function lookupOpenFoodFacts(barcode) {
         countries: p.countries || '',
         manufacturing: p.manufacturing_places || '',
         origins: p.origins || '',
-        ingredients: p.ingredients_text || '',
+        ingredients: p.ingredients_text_en || p.ingredients_text || '',
+        ingredientsIsOriginal: !p.ingredients_text_en && /[^\x00-\x7F]/.test(p.ingredients_text || ''),
         ingredientsAnalysis: p.ingredients_analysis_tags || [],
         categories: p.categories || '',
         nutriscore: p.nutriscore_grade || '',
@@ -60,7 +61,7 @@ async function lookupOpenFoodFacts(barcode) {
 
 async function lookupOpenBeautyFacts(barcode) {
   try {
-    const fields = 'product_name,generic_name,brands,brand_owner,image_front_url,image_url,quantity,countries,manufacturing_places,origins,ingredients_text,ingredients_analysis_tags,categories,nutriscore_grade,nova_group,nutriments,allergens,additives_tags,labels,labels_tags,stores,link';
+    const fields = 'product_name,product_name_en,generic_name,brands,brand_owner,image_front_url,image_url,quantity,countries,manufacturing_places,origins,ingredients_text,ingredients_text_en,ingredients_analysis_tags,categories,nutriscore_grade,nova_group,nutriments,allergens,additives_tags,labels,labels_tags,stores,link';
     const resp = await fetch(`https://world.openbeautyfacts.org/api/v2/product/${barcode}.json?fields=${fields}`, {
       headers: { 'User-Agent': 'ScanOrigin/1.0 (contact@scanorigin.app)' },
     });
@@ -71,7 +72,7 @@ async function lookupOpenBeautyFacts(barcode) {
       const nutriments = p.nutriments || {};
       return {
         source: 'Open Beauty Facts',
-        name: p.product_name || p.generic_name || '',
+        name: p.product_name_en || p.product_name || p.generic_name || '',
         brand: p.brands || '',
         brandOwner: p.brand_owner || '',
         image: p.image_front_url || p.image_url || '',
@@ -79,7 +80,8 @@ async function lookupOpenBeautyFacts(barcode) {
         countries: p.countries || '',
         manufacturing: p.manufacturing_places || '',
         origins: p.origins || '',
-        ingredients: p.ingredients_text || '',
+        ingredients: p.ingredients_text_en || p.ingredients_text || '',
+        ingredientsIsOriginal: !p.ingredients_text_en && /[^\x00-\x7F]/.test(p.ingredients_text || ''),
         ingredientsAnalysis: p.ingredients_analysis_tags || [],
         categories: p.categories || '',
         nutriscore: p.nutriscore_grade || '',
