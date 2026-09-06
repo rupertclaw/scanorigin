@@ -58,6 +58,52 @@ async function lookupOpenFoodFacts(barcode) {
   return null;
 }
 
+async function lookupOpenBeautyFacts(barcode) {
+  try {
+    const fields = 'product_name,generic_name,brands,brand_owner,image_front_url,image_url,quantity,countries,manufacturing_places,origins,ingredients_text,ingredients_analysis_tags,categories,nutriscore_grade,nova_group,nutriments,allergens,additives_tags,labels,labels_tags,stores,link';
+    const resp = await fetch(`https://world.openbeautyfacts.org/api/v2/product/${barcode}.json?fields=${fields}`, {
+      headers: { 'User-Agent': 'ScanOrigin/1.0 (contact@scanorigin.app)' },
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    if (data.status === 1 && data.product) {
+      const p = data.product;
+      const nutriments = p.nutriments || {};
+      return {
+        source: 'Open Beauty Facts',
+        name: p.product_name || p.generic_name || '',
+        brand: p.brands || '',
+        brandOwner: p.brand_owner || '',
+        image: p.image_front_url || p.image_url || '',
+        quantity: p.quantity || '',
+        countries: p.countries || '',
+        manufacturing: p.manufacturing_places || '',
+        origins: p.origins || '',
+        ingredients: p.ingredients_text || '',
+        ingredientsAnalysis: p.ingredients_analysis_tags || [],
+        categories: p.categories || '',
+        nutriscore: p.nutriscore_grade || '',
+        novaGroup: p.nova_group || null,
+        nutriments: {
+          energy: nutriments['energy-kcal_100g'] || nutriments['energy_100g'] || null,
+          fat: nutriments['fat_100g'] || null,
+          saturatedFat: nutriments['saturated-fat_100g'] || null,
+          carbs: nutriments['carbohydrates_100g'] || null,
+          sugars: nutriments['sugars_100g'] || null,
+          fiber: nutriments['fiber_100g'] || null,
+          proteins: nutriments['proteins_100g'] || null,
+          salt: nutriments['salt_100g'] || null,
+        },
+        allergens: p.allergens || '',
+        labels: p.labels || '',
+        labelsTags: p.labels_tags || [],
+        sourceUrl: p.link || `https://world.openbeautyfacts.org/product/${barcode}`,
+      };
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
 async function lookupUPCitemdb(barcode) {
   try {
     const resp = await fetch(`https://api.upcitemdb.com/prod/trial/${barcode}`, {
@@ -302,16 +348,18 @@ async function searchManufacturingOrigin(productName, brand) {
 
 async function lookupProduct(barcode) {
   const results = [];
-  const [off, upc, ddg, cl] = await Promise.allSettled([
+  const [off, upc, ddg, cl, obf] = await Promise.allSettled([
     lookupOpenFoodFacts(barcode),
     lookupUPCitemdb(barcode),
     lookupDuckDuckGo(barcode),
     lookupCodeLook(barcode),
+    lookupOpenBeautyFacts(barcode),
   ]);
   if (off.status === 'fulfilled' && off.value) results.push(off.value);
   if (upc.status === 'fulfilled' && upc.value) results.push(upc.value);
   if (ddg.status === 'fulfilled' && ddg.value) results.push(ddg.value);
   if (cl.status === 'fulfilled' && cl.value) results.push(cl.value);
+  if (obf.status === 'fulfilled' && obf.value) results.push(obf.value);
 
   // Enrich with Wikipedia brand info (company ownership, description)
   const brand = off.value?.brand || upc.value?.brand || '';
