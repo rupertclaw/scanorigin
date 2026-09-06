@@ -1355,9 +1355,36 @@ function renderBrandResult(searchTerm, chain, ownershipSource) {
   }
 }
 
+// Translate non-English ingredient text via Gemini proxy (6h server cache)
+async function translateIngredients(text) {
+  const el = document.getElementById('ingredientsText');
+  if (!el) return;
+  el.style.opacity = '0.6';
+  el.textContent = 'Translating...';
+  try {
+    const resp = await fetch('https://truenorth-gemini-proxy.rupertclaw.workers.dev', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ brand: '__translate__', category: '', text }),
+      signal: AbortSignal.timeout(25000),
+    });
+    if (!resp.ok) throw new Error('status ' + resp.status);
+    const data = await resp.json();
+    el.style.opacity = '1';
+    el.textContent = data.translation || 'Translation unavailable.';
+  } catch (e) {
+    el.style.opacity = '1';
+    el.textContent = 'Translation failed. Original: ' + decodeURIComponent(text).substring(0, 300);
+  }
+}
+
 // ── AI-powered alternatives via Cloudflare Worker → Gemini ──────
 async function fetchAiAlternatives(brand, category) {
-  const slot = document.getElementById('aiAltSlot');
+  // NOTE: re-grab the slot after every await — a re-render (enrichment) recreates
+  // the slot mid-flight, and writing to a detached node means the user never
+  // sees the result (the "alternatives never appear" bug).
+  const getSlot = () => document.getElementById('aiAltSlot');
+  let slot = getSlot();
   if (!slot) return;
 
   // Elapsed timer — Gemini can take 30-60s; show it's still working
@@ -1377,11 +1404,13 @@ async function fetchAiAlternatives(brand, category) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ brand, category }),
-      signal: AbortSignal.timeout(90000),
+      signal: AbortSignal.timeout(25000),
     });
 
     if (!resp.ok) {
       clearInterval(timerId);
+      slot = getSlot();
+      if (!slot) return;
       const busy = resp.status === 429;
       slot.innerHTML = `<div class="alternative-suggest" style="opacity:0.7">
         <h4>🍁 Alternatives</h4>
@@ -1392,6 +1421,9 @@ async function fetchAiAlternatives(brand, category) {
 
     const data = await resp.json();
     const aiAlts = data.alternatives || [];
+
+    slot = getSlot();
+    if (!slot) { clearInterval(timerId); return; }  // page re-rendered elsewhere
 
     if (aiAlts.length === 0) {
       clearInterval(timerId);
@@ -1431,10 +1463,12 @@ async function fetchAiAlternatives(brand, category) {
     </div>`;
   } catch (err) {
     clearInterval(timerId);
+    slot = getSlot();
+    if (!slot) return;
     if (err && err.name === 'TimeoutError') {
       slot.innerHTML = `<div class="alternative-suggest" style="opacity:0.7">
         <h4>🍁 Alternatives</h4>
-        <div class="alt-item">Timed out. <a href="#" onclick="fetchAiAlternatives('${escapeHtml(brand).replace(/'/g, "\\'")}', ''); return false;">Retry</a></div>
+        <div class="alt-item">Still finding alternatives — <a href="#" onclick="fetchAiAlternatives('${escapeHtml(brand).replace(/'/g, "\\'")}', ''); return false;">check again</a></div>
       </div>`;
     } else {
       // Aborted (new search started) or network gone — clear silently
@@ -1462,7 +1496,7 @@ async function lookupProduct(barcode) {
   // Fallback: direct browser calls if Worker API fails
   // 1. Open Food Facts (free, food products)
   try {
-    const offFields = 'product_name,generic_name,brands,brand_owner,image_front_url,image_url,quantity,countries,manufacturing_places,origins,ingredients_text,ingredients_analysis_tags,categories,nutriscore_grade,nova_group,nutriments,allergens,additives_tags,labels,labels_tags,stores,link';
+    const offFields = 'product_name,product_name_en,generic_name,brands,brand_owner,image_front_url,image_url,quantity,countries,manufacturing_places,origins,ingredients_text,ingredients_text_en,ingredients_analysis_tags,categories,nutriscore_grade,nova_group,nutriments,allergens,additives_tags,labels,labels_tags,stores,link';
     const offResp = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=${offFields}`);
     if (offResp.ok) {
       const offData = await offResp.json();
@@ -1471,7 +1505,7 @@ async function lookupProduct(barcode) {
         const nutriments = p.nutriments || {};
         results.push({
           source: 'Open Food Facts',
-          name: p.product_name || p.generic_name || '',
+          name: p.product_name_en || p.product_name || p.generic_name || '',
           brand: p.brands || '',
           brandOwner: p.brand_owner || '',
           image: p.image_front_url || p.image_url || '',
@@ -1479,7 +1513,9 @@ async function lookupProduct(barcode) {
           countries: p.countries || '',
           manufacturing: p.manufacturing_places || '',
           origins: p.origins || '',
-          ingredients: p.ingredients_text || '',
+          ingredients: p.ingredients_text_en || p.ingredients_text || '',
+          // true = we're showing the original-language text (no English exists)
+          ingredientsIsOriginal: !p.ingredients_text_en && /[^\x00-\x7F]/.test(p.ingredients_text || ''),
           ingredientsAnalysis: p.ingredients_analysis_tags || [],
           categories: p.categories || '',
           nutriscore: p.nutriscore_grade || '',
@@ -1763,9 +1799,16 @@ function renderResult(barcode, productData, chain) {
   // ── INGREDIENTS section ──
   if (off && off.ingredients) {
     html += '<div class="detail-section">';
-    html += '<div class="section-title">🧪 Ingredients</div>';
+    const ingLabel = off.ingredientsIsOriginal
+      ? '🧪 Ingredients <span style="font-size:11px;color:var(--muted);font-weight:normal">(original language — no English available)</span>'
+      : '🧪 Ingredients';
+    html += `<div class="section-title">${ingLabel}</div>`;
     const ing = off.ingredients.substring(0, 300);
-    html += `<div class="ingredients-text">${escapeHtml(ing)}${off.ingredients.length > 300 ? '...' : ''}</div>`;
+    html += `<div class="ingredients-text" id="ingredientsText">${escapeHtml(ing)}${off.ingredients.length > 300 ? '...' : ''}</div>`;
+    if (off.ingredientsIsOriginal) {
+      const ingForUrl = encodeURIComponent(off.ingredients.substring(0, 1500));
+      html += `<div style="margin-top:6px"><a href="#" onclick="translateIngredients('${ingForUrl}'); return false;" style="font-size:13px">🌐 Translate to English</a></div>`;
+    }
     html += '</div>';
   }
 
