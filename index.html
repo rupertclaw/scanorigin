@@ -1227,7 +1227,9 @@ function assessCanadianStatus(chain) {
   // If the brand itself is Canadian
   if (directCompany.isCanadian) {
     if (chain.length === 1) {
-      return { status: 'yes', label: 'Canadian-owned', confidence: 'high', flag: '🇨🇦' };
+      // Single entity, no parent chain traced — GLEIF registration country
+      // doesn't confirm origin. Could be a subsidiary with missing parent data.
+      return { status: 'yes', label: 'Canadian-owned', confidence: 'medium', flag: '🇨🇦' };
     }
     // Brand is Canadian but owned by foreign parent
     if (topCompany.isUS) {
@@ -1338,22 +1340,140 @@ function renderBrandResult(searchTerm, chain, ownershipSource) {
   const badgeClass = status.status === 'yes' ? 'yes' : status.status === 'no' ? 'no' : 'maybe';
   const chainHtml = renderOwnershipChain(chain);
 
-  area.innerHTML = `<div class="result-card">
-    <div class="canada-badge ${badgeClass}">
+  area.innerHTML = `<div class="result-card" id="brandResultCard">
+    <div class="canada-badge ${badgeClass}" id="brandBadge">
       <span class="flag">${status.flag}</span> ${escapeHtml(status.label)}
     </div>
     <div class="product-name">${escapeHtml(chain[0].name)}</div>
     <div class="result-detail"><strong>Searched:</strong> "${escapeHtml(searchTerm)}"</div>
-    <div class="result-detail"><strong>Confidence:</strong> ${status.confidence}</div>
+    <div class="result-detail" id="confidenceLine"><strong>Confidence:</strong> ${status.confidence}</div>
     ${chainHtml}
     <div id="aiAltSlot"></div>
     <div class="data-source">Data: ${escapeHtml(ownershipSource)}</div>
   </div>`;
 
+  // Wikipedia cross-check: if GLEIF says Canadian with medium confidence
+  // (single entity, no parent chain), verify against Wikipedia origin
+  wikiCrossCheck(searchTerm, chain, status).then(wiki => {
+    if (wiki) {
+      // Wikipedia says different origin — update badge
+      const badge = document.getElementById('brandBadge');
+      const confLine = document.getElementById('confidenceLine');
+      if (badge) {
+        const isUS = wiki.country === 'US';
+        const countryName = { 'US': 'United States', 'GB': 'United Kingdom', 'JP': 'Japan', 'DE': 'Germany', 'FR': 'France', 'IT': 'Italy', 'ES': 'Spain', 'NL': 'Netherlands', 'CH': 'Switzerland', 'SE': 'Sweden', 'AU': 'Australia', 'MX': 'Mexico', 'BR': 'Brazil', 'IN': 'India', 'CN': 'China', 'KR': 'South Korea', 'TR': 'Turkey', 'GR': 'Greece', 'RU': 'Russia', 'PL': 'Poland', 'IE': 'Ireland', 'PT': 'Portugal', 'AT': 'Austria', 'BE': 'Belgium', 'DK': 'Denmark', 'FI': 'Finland', 'NO': 'Norway' }[wiki.country] || wiki.country;
+        badge.className = `canada-badge ${isUS ? 'no' : 'maybe'}`;
+        badge.innerHTML = `<span class="flag">${isUS ? '🇺🇸' : '🌍'}</span> ${isUS ? 'US-owned' : 'Foreign-owned (' + countryName + ')'}`;
+      }
+      if (confLine) {
+        confLine.innerHTML = `<strong>Confidence:</strong> medium <span style="font-size:11px;color:#f59e0b;">(Wikipedia: founded in ${wiki.country === 'US' ? 'United States' : wiki.country})</span>`;
+      }
+      // Now fetch AI alternatives since it's not Canadian
+      fetchAiAlternatives(searchTerm, '');
+    }
+  }).catch(() => {});
+
   // Fetch AI alternatives for any non-Canadian result
   if (status.status !== 'yes') {
     fetchAiAlternatives(searchTerm, '');
   }
+}
+
+// ── Wikipedia origin cross-check for brand search ─────────────
+// When GLEIF returns a single entity with no parent, we can't be sure
+// the registration country = brand origin. Wikipedia intro often says
+// "founded in [country]" or "is a [nationality] company". We use that
+// to catch false positives like Old Dutch Foods (CA subsidiary, US origin).
+async function fetchBrandOriginWiki(brandName) {
+  try {
+    // Title-case the search term — Wikipedia is case-sensitive
+    const titlecased = brandName.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    const title = encodeURIComponent(titlecased);
+    // Get full extract (not just intro) to catch "founded in" in History section
+    const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${title}&prop=extracts&format=json&explaintext=1&redirects=1&origin=*`;
+    const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const pages = data.query?.pages || {};
+    for (const k of Object.keys(pages)) {
+      if (k !== '-1' && pages[k].extract) {
+        const extract = pages[k].extract;
+        // US state names -> US
+        const US_STATES = ['Minnesota','California','Texas','New York','Florida','Illinois','Pennsylvania','Ohio','Georgia','Michigan','Washington','Arizona','Massachusetts','Indiana','Tennessee','Missouri','Maryland','Wisconsin','Colorado','Oregon','Kentucky','Oklahoma','Connecticut','Iowa','Mississippi','Arkansas','Kansas','New Mexico','Nebraska','West Virginia','Idaho','Hawaii','New Hampshire','Maine','Montana','Rhode Island','Delaware','South Dakota','North Dakota','Alaska','Vermont','Wyoming','South Carolina','North Carolina','Alabama','Louisiana','Utah','Nevada','Virginia','New Jersey','St. Paul','Minneapolis','Roseville','Los Angeles','Chicago','Boston','Seattle','Denver','Atlanta','Detroit','Houston','Dallas','Miami','Philadelphia','Phoenix','Portland','Sacramento','Las Vegas','San Francisco','San Diego','Austin','Baltimore'];
+        const COUNTRY_MAP = {
+          'United States': 'US', 'America': 'US', 'USA': 'US',
+          'Canada': 'CA', 'United Kingdom': 'GB', 'England': 'GB',
+          'Japan': 'JP', 'Germany': 'DE', 'France': 'FR', 'Italy': 'IT',
+          'Spain': 'ES', 'Netherlands': 'NL', 'Switzerland': 'CH', 'Sweden': 'SE',
+          'Australia': 'AU', 'Mexico': 'MX', 'Brazil': 'BR', 'India': 'IN',
+          'China': 'CN', 'South Korea': 'KR', 'Ireland': 'IE', 'Belgium': 'BE',
+          'Denmark': 'DK', 'Finland': 'FI', 'Norway': 'NO', 'Poland': 'PL',
+          'Portugal': 'PT', 'Austria': 'AT', 'Turkey': 'TR', 'Greece': 'GR',
+          'Russia': 'RU',
+        };
+        // Strategy 1: "is a [nationality] manufacturer/company/brand" — intro only
+        const intro = extract.substring(0, 500);
+        const natMatch = intro.match(/is\s+(?:an?\s+)?(American|British|German|French|Italian|Spanish|Belgian|Swiss|Swedish|Norwegian|Danish|Finnish|Polish|Irish|Portuguese|Austrian|Canadian|Australian|Japanese|Chinese|Korean|Indian|Brazilian|Mexican|Turkish|Greek|Russian)\b/i);
+        if (natMatch) {
+          const natKey = natMatch[1].charAt(0).toUpperCase() + natMatch[1].slice(1).toLowerCase();
+          const natMap = { 'American': 'US', 'British': 'GB', 'Canadian': 'CA', 'Australian': 'AU', 'Japanese': 'JP', 'German': 'DE', 'French': 'FR', 'Italian': 'IT', 'Spanish': 'ES', 'Dutch': 'NL', 'Swiss': 'CH', 'Swedish': 'SE', 'Norwegian': 'NO', 'Danish': 'DK', 'Finnish': 'FI', 'Irish': 'IE', 'Mexican': 'MX', 'Brazilian': 'BR', 'Indian': 'IN', 'Korean': 'KR', 'Turkish': 'TR', 'Greek': 'GR', 'Russian': 'RU', 'Polish': 'PL', 'Portuguese': 'PT', 'Austrian': 'AT', 'Belgian': 'BE' };
+          if (natMap[natKey]) return { country: natMap[natKey], source: 'nationality' };
+        }
+        // Strategy 1b: "United States corporation/company/brand" in intro
+        if (/United States\s+(?:corporation|company|brand|manufacturer)/i.test(intro)) return { country: 'US', source: 'nationality' };
+        // Strategy 2: "founded/originated/based in [Place]" where Place is a country or US state
+        const originMatch = extract.match(/(?:founded|established|originated|based|headquartered)[^.]*?\bin\s+([A-Z][A-Za-z.]+(?:\s+[A-Z][A-Za-z]+)*)/);
+        if (originMatch) {
+          const place = originMatch[1].replace(/,$/, '').trim();
+          if (COUNTRY_MAP[place]) return { country: COUNTRY_MAP[place], source: 'origin' };
+          // Check if it's a US state/city
+          for (const s of US_STATES) {
+            if (place.includes(s) || s.includes(place)) return { country: 'US', source: 'origin' };
+          }
+        }
+        // Strategy 3: "headquartered in [Place]"
+        const hqMatch = extract.match(/headquarters\s+(?:is\s+)?(?:in|are\s+in)\s+([A-Z][A-Za-z.]+(?:\s+[A-Z][A-Za-z]+)*)/);
+        if (hqMatch) {
+          const place = hqMatch[1].replace(/,$/, '').trim();
+          if (COUNTRY_MAP[place]) return { country: COUNTRY_MAP[place], source: 'hq' };
+          for (const s of US_STATES) {
+            if (place.includes(s) || s.includes(place)) return { country: 'US', source: 'hq' };
+          }
+        }
+        // Strategy 4: US state name anywhere near "founded/originated"
+        for (const state of US_STATES) {
+          if (extract.includes(state)) {
+            // Verify it's near an origin keyword
+            const idx = extract.indexOf(state);
+            const nearby = extract.substring(Math.max(0, idx - 100), idx + state.length + 50);
+            if (/founded|established|originated|began|started|based|headquartered/i.test(nearby)) {
+              return { country: 'US', source: 'state' };
+            }
+          }
+        }
+        return null;
+      }
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+// Cross-check brand search result against Wikipedia
+async function wikiCrossCheck(searchTerm, chain, initialStatus) {
+  // Only cross-check when we have a single-entity chain (no parent traced)
+  // or when GLEIF says Canadian with medium confidence
+  if (!chain || chain.length !== 1) return null;
+  if (initialStatus.status !== 'yes' || initialStatus.confidence !== 'medium') return null;
+
+  const wiki = await fetchBrandOriginWiki(searchTerm);
+  if (!wiki || !wiki.country) return null;
+
+  const gleifCountry = chain[0].isCanadian ? 'CA' : chain[0].isUS ? 'US' : null;
+  if (wiki.country !== gleifCountry) {
+    // Wikipedia says a different origin country than GLEIF registration
+    return wiki;
+  }
+  return null;
 }
 
 // Translate non-English ingredient text via Gemini proxy (6h server cache)
