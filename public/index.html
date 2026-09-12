@@ -1316,6 +1316,38 @@ async function searchBrand() {
       ownershipSource = 'GLEIF';
     }
 
+    // Step 3: If GLEIF found nothing, try Wikipedia
+    if (!chain || chain.length === 0) {
+      area.innerHTML = `<div style="text-align:center;padding:20px;color:#6b7280"><span class="spinner"></span> Searching Wikipedia for "${escapeHtml(term)}"...</div>`;
+      const wiki = await wikiBrandLookup(term);
+      if (wiki) {
+        chain = buildChainFromWiki(term, wiki);
+        ownershipSource = 'Wikipedia';
+      }
+    }
+
+    // Step 4: If GLEIF found a single entity with no parent, try Wikipedia
+    // for parent company info (GLEIF often misses acquisition data)
+    if (chain && chain.length === 1 && ownershipSource === 'GLEIF') {
+      const wiki = await wikiBrandLookup(chain[0].name);
+      if (wiki && wiki.parent) {
+        // Wikipedia found a parent company — add it to the chain
+        const parentEntry = {
+          lei: null,
+          name: wiki.parent,
+          country: wiki.parentCountry ? countryCodeToName(wiki.parentCountry) : null,
+          hq: null,
+          isCanadian: wiki.parentCountry === 'CA',
+          isUS: wiki.parentCountry === 'US',
+        };
+        // Avoid duplicates
+        if (!chain.some(c => c.name.toLowerCase() === wiki.parent.toLowerCase())) {
+          chain.push(parentEntry);
+          ownershipSource = 'GLEIF + Wikipedia';
+        }
+      }
+    }
+
     if (!chain || chain.length === 0) {
       area.innerHTML = `<div class="result-card">
         <div class="canada-badge maybe"><span class="flag">❓</span> No ownership data</div>
@@ -1474,6 +1506,130 @@ async function wikiCrossCheck(searchTerm, chain, initialStatus) {
     return wiki;
   }
   return null;
+}
+
+// ── Wikipedia brand lookup (fallback + parent enrichment) ─────
+// Searches Wikipedia for a brand name and extracts:
+// - parent company (from "owned by", "subsidiary of", "X acquired Y" patterns)
+// - origin country (from nationality adjectives, "founded in", US states)
+// Returns { name, parent, parentCountry, originCountry, extract } or null
+async function wikiBrandLookup(brandName) {
+  try {
+    const titlecased = brandName.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    const title = encodeURIComponent(titlecased);
+    const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${title}&prop=extracts&format=json&explaintext=1&redirects=1&origin=*`;
+    const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const pages = data.query?.pages || {};
+    for (const k of Object.keys(pages)) {
+      if (k === '-1' || !pages[k].extract) continue;
+      const extract = pages[k].extract;
+      const result = { name: pages[k].title || brandName, parent: null, parentCountry: null, originCountry: null };
+
+      // Extract parent company
+      const parentPatterns = [
+        /(?:subsidiary\s+of|owned\s+by|brand\s+of|produced\s+by|manufactured\s+by|sold\s+by|distributed\s+by)\s+(?:the\s+)?(?:[a-z]+\s+)*([A-Z][A-Za-z]+(?:[\s\-&][A-Za-z]+)*)/,
+        /([A-Z][A-Za-z]+(?:[\s\-&][A-Za-z]+)*)\s+(?:purchased|acquired|bought)\s+(?:the\s+)?(?:[a-z]+\s+)*([A-Z][A-Za-z]+(?:[\s\-&][A-Za-z]+)*)/,
+      ];
+      for (const p of parentPatterns) {
+        const m = extract.match(p);
+        if (m) {
+          // For "X acquired Y": X is the ultimate parent
+          // For "subsidiary of X": X is the parent
+          result.parent = m[1].trim();
+          // Clean up: stop at common boundary words
+          result.parent = result.parent.replace(/\s+(?:which|that|in|and|a|the|is|was|by|from|for)\s.*$/i, '').trim();
+          if (result.parent.length > 2) break;
+          result.parent = null;
+        }
+      }
+
+      // Extract origin country
+      const intro = extract.substring(0, 500);
+      const US_STATES = ['Minnesota','California','Texas','New York','Florida','Illinois','Pennsylvania','Ohio','Georgia','Michigan','Washington','Arizona','Massachusetts','Indiana','Tennessee','Missouri','Maryland','Wisconsin','Colorado','Oregon','Kentucky','Oklahoma','Connecticut','Iowa','Mississippi','Arkansas','Kansas','New Mexico','Nebraska','West Virginia','Idaho','Hawaii','New Hampshire','Maine','Montana','Rhode Island','Delaware','South Dakota','North Dakota','Alaska','Vermont','Wyoming','South Carolina','North Carolina','Alabama','Louisiana','Utah','Nevada','Virginia','New Jersey'];
+      const COUNTRY_MAP = { 'United States': 'US', 'America': 'US', 'Canada': 'CA', 'United Kingdom': 'GB', 'England': 'GB', 'Japan': 'JP', 'Germany': 'DE', 'France': 'FR', 'Italy': 'IT', 'Spain': 'ES', 'Netherlands': 'NL', 'Switzerland': 'CH', 'Sweden': 'SE', 'Australia': 'AU', 'Mexico': 'MX', 'Brazil': 'BR', 'India': 'IN' };
+
+      // Nationality adjective
+      const natMatch = intro.match(/is\s+(?:an?\s+)?(American|British|German|French|Italian|Spanish|Belgian|Swiss|Swedish|Norwegian|Danish|Finnish|Polish|Irish|Portuguese|Austrian|Canadian|Australian|Japanese|Chinese|Korean|Indian|Brazilian|Mexican|Turkish|Greek|Russian)\b/i);
+      if (natMatch) {
+        const natMap = { 'American': 'US', 'British': 'GB', 'Canadian': 'CA', 'Australian': 'AU', 'Japanese': 'JP', 'German': 'DE', 'French': 'FR', 'Italian': 'IT', 'Spanish': 'ES', 'Dutch': 'NL', 'Swiss': 'CH', 'Swedish': 'SE', 'Norwegian': 'NO', 'Danish': 'DK', 'Finnish': 'FI', 'Irish': 'IE', 'Mexican': 'MX', 'Brazilian': 'BR', 'Indian': 'IN', 'Korean': 'KR', 'Turkish': 'TR', 'Greek': 'GR', 'Russian': 'RU', 'Polish': 'PL', 'Portuguese': 'PT', 'Austrian': 'AT', 'Belgian': 'BE' };
+        result.originCountry = natMap[natMatch[1].charAt(0).toUpperCase() + natMatch[1].slice(1).toLowerCase()] || null;
+      }
+      // "United States corporation/company"
+      if (!result.originCountry && /United States\s+(?:corporation|company|brand|manufacturer)/i.test(intro)) result.originCountry = 'US';
+      // "founded/originated in [Place]"
+      if (!result.originCountry) {
+        const originMatch = extract.match(/(?:founded|established|originated|based|headquartered)[^.]*?\bin\s+([A-Z][A-Za-z.]+(?:\s+[A-Z][A-Za-z]+)*)/);
+        if (originMatch) {
+          const place = originMatch[1].replace(/,$/, '').trim();
+          if (COUNTRY_MAP[place]) result.originCountry = COUNTRY_MAP[place];
+          if (!result.originCountry) {
+            for (const s of US_STATES) { if (place.includes(s) || s.includes(place)) { result.originCountry = 'US'; break; } }
+          }
+        }
+      }
+      // "manufactured in Canada/USA"
+      if (!result.originCountry) {
+        const mfgMatch = extract.match(/manufactured\s+in\s+(?:[A-Z][a-z]+,\s+)?(Canada|America|United\s+States)/i);
+        if (mfgMatch) {
+          const place = mfgMatch[1].toLowerCase();
+          result.originCountry = { 'canada': 'CA', 'america': 'US', 'united states': 'US' }[place] || null;
+        }
+      }
+      // US state near origin keyword
+      if (!result.originCountry) {
+        for (const state of US_STATES) {
+          if (extract.includes(state)) {
+            const idx = extract.indexOf(state);
+            const nearby = extract.substring(Math.max(0, idx - 100), idx + state.length + 50);
+            if (/founded|established|originated|began|started|based|headquartered/i.test(nearby)) { result.originCountry = 'US'; break; }
+          }
+        }
+      }
+
+      // Try to determine parent country via GLEIF lookup of the parent name
+      if (result.parent) {
+        const parentResults = await gleifSearch(result.parent);
+        if (parentResults.length > 0) {
+          const info = gleifEntityInfo(parentResults[0]);
+          if (info && info.country) {
+            const natMap = { 'US': 'US', 'CA': 'CA', 'GB': 'GB', 'DE': 'DE', 'FR': 'FR', 'JP': 'JP', 'IT': 'IT', 'ES': 'ES', 'NL': 'NL', 'CH': 'CH', 'SE': 'SE', 'AU': 'AU', 'MX': 'MX', 'BR': 'BR', 'IN': 'IN', 'CN': 'CN', 'KR': 'KR', 'IE': 'IE', 'BE': 'BE', 'DK': 'DK', 'FI': 'FI', 'NO': 'NO', 'PL': 'PL', 'PT': 'PT', 'AT': 'AT', 'TR': 'TR', 'GR': 'GR', 'RU': 'RU' };
+            result.parentCountry = info.country;
+          }
+        }
+      }
+
+      return result;
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+// Build a chain from Wikipedia brand lookup data
+function buildChainFromWiki(brandName, wiki) {
+  const chain = [];
+  // Brand itself
+  chain.push({
+    lei: null,
+    name: wiki.name || brandName,
+    country: wiki.originCountry ? countryCodeToName(wiki.originCountry) : null,
+    hq: null,
+    isCanadian: wiki.originCountry === 'CA',
+    isUS: wiki.originCountry === 'US',
+  });
+  // Parent company (if found)
+  if (wiki.parent) {
+    chain.push({
+      lei: null,
+      name: wiki.parent,
+      country: wiki.parentCountry ? countryCodeToName(wiki.parentCountry) : null,
+      hq: null,
+      isCanadian: wiki.parentCountry === 'CA',
+      isUS: wiki.parentCountry === 'US',
+    });
+  }
+  return chain;
 }
 
 // Translate non-English ingredient text via Gemini proxy (6h server cache)
