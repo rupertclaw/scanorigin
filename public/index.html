@@ -1289,6 +1289,24 @@ function renderOwnershipChain(chain) {
 // ═══════════════════════════════════════════════════════════════
 // BRAND NAME SEARCH
 // ═══════════════════════════════════════════════════════════════
+// ── Gemini ownership lookup via proxy ─────────────────────────
+// Returns { brand, originCountry, parentCompany, parentCountry, confidence, note } or null
+async function geminiOwnershipLookup(brandName) {
+  try {
+    const resp = await fetch('https://truenorth-gemini-proxy.rupertclaw.workers.dev', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ brand: '__ownership__', text: brandName }),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    if (data.error) return null;
+    if (!data.brand && !data.parentCompany && !data.originCountry) return null;
+    return data;
+  } catch (e) { return null; }
+}
+
 async function searchBrand() {
   const input = document.getElementById('brandSearch');
   const term = input.value.trim();
@@ -1299,52 +1317,65 @@ async function searchBrand() {
 
   try {
     let chain = null;
-    let ownershipSource = 'not found';
 
-    // Step 1: Check static brand database
+    // Step 1: Gemini ownership lookup — primary source. It knows acquisitions
+    // (Mars/Champion, Kraft Heinz/Magic) that GLEIF misses entirely.
+    const gemini = await geminiOwnershipLookup(term);
+
+    // Step 2: GLEIF structured registry — confirms or adds detail
     const dbEntry = lookupBrandDb(term);
     if (dbEntry) {
-      area.innerHTML = `<div style="text-align:center;padding:20px;color:#6b7280"><span class="spinner"></span> Found "${escapeHtml(dbEntry.company)}" — tracing ownership via GLEIF...</div>`;
       chain = await buildChainFromBrandDb(term, dbEntry);
-      ownershipSource = 'Brand DB + GLEIF';
     }
-
-    // Step 2: If not in brand DB, search GLEIF directly
     if (!chain || chain.length === 0) {
-      area.innerHTML = `<div style="text-align:center;padding:20px;color:#6b7280"><span class="spinner"></span> Searching GLEIF for "${escapeHtml(term)}"...</div>`;
       chain = await buildChainFromGleifSearch(term);
-      ownershipSource = 'GLEIF';
     }
 
-    // Step 3: If GLEIF found nothing, try Wikipedia
-    if (!chain || chain.length === 0) {
-      area.innerHTML = `<div style="text-align:center;padding:20px;color:#6b7280"><span class="spinner"></span> Searching Wikipedia for "${escapeHtml(term)}"...</div>`;
-      const wiki = await wikiBrandLookup(term);
-      if (wiki) {
-        chain = buildChainFromWiki(term, wiki);
-        ownershipSource = 'Wikipedia';
-      }
-    }
-
-    // Step 4: If GLEIF found a single entity with no parent, try Wikipedia
-    // for parent company info (GLEIF often misses acquisition data)
-    if (chain && chain.length === 1 && ownershipSource === 'GLEIF') {
-      const wiki = await wikiBrandLookup(chain[0].name);
-      if (wiki && wiki.parent) {
-        // Wikipedia found a parent company — add it to the chain
-        const parentEntry = {
-          lei: null,
-          name: wiki.parent,
-          country: wiki.parentCountry ? countryCodeToName(wiki.parentCountry) : null,
-          hq: null,
-          isCanadian: wiki.parentCountry === 'CA',
-          isUS: wiki.parentCountry === 'US',
+    // Step 3: Combine. If Gemini and GLEIF disagree on origin, Gemini wins
+    // (it uses ultimate-parent knowledge; GLEIF only knows registration country).
+    if (gemini && chain && chain.length > 0) {
+      const gleifCountry = chain[0].isCanadian ? 'CA' : chain[0].isUS ? 'US' : null;
+      if (gemini.originCountry && gemini.originCountry !== gleifCountry) {
+        // GLEIF registration country is wrong — replace with Gemini origin
+        chain[0] = {
+          ...chain[0],
+          country: countryCodeToName(gemini.originCountry),
+          isCanadian: gemini.originCountry === 'CA',
+          isUS: gemini.originCountry === 'US',
         };
-        // Avoid duplicates
-        if (!chain.some(c => c.name.toLowerCase() === wiki.parent.toLowerCase())) {
-          chain.push(parentEntry);
-          ownershipSource = 'GLEIF + Wikipedia';
+      }
+      // If Gemini knows the ultimate parent and GLEIF didn't trace one, add it
+      if (gemini.parentCompany && chain.length === 1) {
+        if (!chain.some(c => c.name.toLowerCase() === gemini.parentCompany.toLowerCase())) {
+          chain.push({
+            lei: null,
+            name: gemini.parentCompany,
+            country: gemini.parentCountry ? countryCodeToName(gemini.parentCountry) : null,
+            hq: null,
+            isCanadian: gemini.parentCountry === 'CA',
+            isUS: gemini.parentCountry === 'US',
+          });
         }
+      }
+    } else if (gemini && (!chain || chain.length === 0)) {
+      // GLEIF found nothing — build the chain from Gemini alone
+      chain = [{
+        lei: null,
+        name: gemini.brand || term,
+        country: gemini.originCountry ? countryCodeToName(gemini.originCountry) : null,
+        hq: null,
+        isCanadian: gemini.originCountry === 'CA',
+        isUS: gemini.originCountry === 'US',
+      }];
+      if (gemini.parentCompany) {
+        chain.push({
+          lei: null,
+          name: gemini.parentCompany,
+          country: gemini.parentCountry ? countryCodeToName(gemini.parentCountry) : null,
+          hq: null,
+          isCanadian: gemini.parentCountry === 'CA',
+          isUS: gemini.parentCountry === 'US',
+        });
       }
     }
 
@@ -1352,13 +1383,12 @@ async function searchBrand() {
       area.innerHTML = `<div class="result-card">
         <div class="canada-badge maybe"><span class="flag">❓</span> No ownership data</div>
         <div class="product-name">${escapeHtml(term)}</div>
-        <div class="result-detail">This brand wasn't found in our database or GLEIF. Try the parent company name (e.g. "Coca-Cola Company" instead of "Fanta").</div>
-        <div class="data-source">Source: ${ownershipSource}</div>
+        <div class="result-detail">We couldn't determine who owns this brand. Try the parent company name (e.g. "Coca-Cola Company" instead of "Fanta").</div>
       </div>`;
       return;
     }
 
-    renderBrandResult(term, chain, ownershipSource);
+    renderBrandResult(term, chain, gemini);
   } catch (err) {
     console.error('Brand search error:', err);
     showError(`Search failed: ${err.message}`);
@@ -1366,11 +1396,16 @@ async function searchBrand() {
 }
 
 
-function renderBrandResult(searchTerm, chain, ownershipSource) {
+function renderBrandResult(searchTerm, chain, gemini) {
   const area = document.getElementById('brandResults');
   const status = assessCanadianStatus(chain);
   const badgeClass = status.status === 'yes' ? 'yes' : status.status === 'no' ? 'no' : 'maybe';
   const chainHtml = renderOwnershipChain(chain);
+
+  // Gemini note gives context (e.g. "Founded in Toronto 1897, acquired by Kraft Heinz")
+  const noteHtml = gemini && gemini.note
+    ? `<div class="result-detail" style="font-style:italic;color:#9ca3af;">${escapeHtml(gemini.note)}</div>`
+    : '';
 
   area.innerHTML = `<div class="result-card" id="brandResultCard">
     <div class="canada-badge ${badgeClass}" id="brandBadge">
@@ -1378,32 +1413,11 @@ function renderBrandResult(searchTerm, chain, ownershipSource) {
     </div>
     <div class="product-name">${escapeHtml(chain[0].name)}</div>
     <div class="result-detail"><strong>Searched:</strong> "${escapeHtml(searchTerm)}"</div>
-    <div class="result-detail" id="confidenceLine"><strong>Confidence:</strong> ${status.confidence}</div>
+    <div class="result-detail"><strong>Confidence:</strong> ${gemini?.confidence || status.confidence}</div>
+    ${noteHtml}
     ${chainHtml}
     <div id="aiAltSlot"></div>
-    <div class="data-source">Data: ${escapeHtml(ownershipSource)}</div>
   </div>`;
-
-  // Wikipedia cross-check: if GLEIF says Canadian with medium confidence
-  // (single entity, no parent chain), verify against Wikipedia origin
-  wikiCrossCheck(searchTerm, chain, status).then(wiki => {
-    if (wiki) {
-      // Wikipedia says different origin — update badge
-      const badge = document.getElementById('brandBadge');
-      const confLine = document.getElementById('confidenceLine');
-      if (badge) {
-        const isUS = wiki.country === 'US';
-        const countryName = { 'US': 'United States', 'GB': 'United Kingdom', 'JP': 'Japan', 'DE': 'Germany', 'FR': 'France', 'IT': 'Italy', 'ES': 'Spain', 'NL': 'Netherlands', 'CH': 'Switzerland', 'SE': 'Sweden', 'AU': 'Australia', 'MX': 'Mexico', 'BR': 'Brazil', 'IN': 'India', 'CN': 'China', 'KR': 'South Korea', 'TR': 'Turkey', 'GR': 'Greece', 'RU': 'Russia', 'PL': 'Poland', 'IE': 'Ireland', 'PT': 'Portugal', 'AT': 'Austria', 'BE': 'Belgium', 'DK': 'Denmark', 'FI': 'Finland', 'NO': 'Norway' }[wiki.country] || wiki.country;
-        badge.className = `canada-badge ${isUS ? 'no' : 'maybe'}`;
-        badge.innerHTML = `<span class="flag">${isUS ? '🇺🇸' : '🌍'}</span> ${isUS ? 'US-owned' : 'Foreign-owned (' + countryName + ')'}`;
-      }
-      if (confLine) {
-        confLine.innerHTML = `<strong>Confidence:</strong> medium <span style="font-size:11px;color:#f59e0b;">(Wikipedia: founded in ${wiki.country === 'US' ? 'United States' : wiki.country})</span>`;
-      }
-      // Now fetch AI alternatives since it's not Canadian
-      fetchAiAlternatives(searchTerm, '');
-    }
-  }).catch(() => {});
 
   // Fetch AI alternatives for any non-Canadian result
   if (status.status !== 'yes') {
