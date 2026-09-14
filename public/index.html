@@ -2860,7 +2860,7 @@ if ('serviceWorker' in navigator) {
     <div style="background:#1d2027;border:1px solid #2a2d35;border-radius:10px;padding:12px 14px;margin-bottom:10px;">
       <div style="font-size:12px;font-weight:700;color:#e5e7eb;margin-bottom:5px;">Who's behind it</div>
       <div style="font-size:13px;color:#c9cdd4;line-height:1.55;">
-        <strong>Graeme Mooney</strong> — independent hobby developer. I built ScanOrigin because checking who actually owns the brands on the shelf shouldn't require digging through corporate websites. It's a side project, run on free and low-cost infrastructure, with no investors and no ad business behind it.
+        ScanOrigin is a project by a retired Canadian individual who is a hobby developer. It is built for the love of it: a clean, simple way to check who actually makes the products on the shelf, without paywalls or data harvesting.
       </div>
     </div>
     <div style="background:#1d2027;border:1px solid #2a2d35;border-radius:10px;padding:12px 14px;margin-bottom:10px;">
@@ -2874,11 +2874,39 @@ if ('serviceWorker' in navigator) {
     <div style="background:#1d2027;border:1px solid #2a2d35;border-radius:10px;padding:12px 14px;margin-bottom:12px;">
       <div style="font-size:13px;font-weight:700;color:#e5e7eb;margin-bottom:5px;">Contact</div>
       <div style="font-size:13px;color:#c9cdd4;line-height:1.7;">
-        📧 Questions or concerns: <a href="mailto:graememooney66@gmail.com" style="color:#38bdf8;">graememooney66@gmail.com</a><br>
+        📧 Questions or privacy concerns: <a href="#" onclick="hideAboutModal(); showFeedbackModal(); return false;" style="color:#38bdf8;">use the feedback form</a><br>
         👍 Follow along: <a href="https://www.facebook.com/share/1K4HP63sMy/" target="_blank" rel="noopener" style="color:#38bdf8;">ScanOrigin on Facebook</a>
       </div>
     </div>
     <button id="aboutModalOk" style="width:100%;padding:12px;border:none;border-radius:10px;background:#10b981;color:#000;font-size:13px;font-weight:700;cursor:pointer;">Close</button>
+  </div>
+</div>
+<!-- Feedback Modal -->
+<div id="feedbackModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:10005;justify-content:center;align-items:center;">
+  <div style="background:#16181d;border:1px solid #2a2d35;border-radius:16px;padding:18px 20px;max-width:440px;width:92%;max-height:88vh;overflow-y:auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+    <div style="text-align:center;margin-bottom:16px;">
+      <div style="font-size:36px;margin-bottom:8px;">💬</div>
+      <div style="font-size:18px;font-weight:700;color:#f3f4f6;">Send Feedback</div>
+      <div style="font-size:12px;color:#9ca3af;">We'd love to hear your thoughts</div>
+    </div>
+    <form id="feedbackForm" action="https://formspree.io/f/xaqglnpa" method="POST">
+      <input type="hidden" name="_next" value="https://scanorigin.ca">
+      <input type="hidden" name="_subject" value="New ScanOrigin feedback">
+      <div style="margin-bottom:12px;">
+        <label style="display:block;font-size:12px;font-weight:600;color:#e5e7eb;margin-bottom:4px;">Name</label>
+        <input type="text" name="name" required style="width:100%;padding:10px;border:1px solid #2a2d35;border-radius:8px;background:#1d2027;color:#f3f4f6;font-size:14px;box-sizing:border-box;" placeholder="Your name">
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="display:block;font-size:12px;font-weight:600;color:#e5e7eb;margin-bottom:4px;">Email</label>
+        <input type="email" name="email" required style="width:100%;padding:10px;border:1px solid #2a2d35;border-radius:8px;background:#1d2027;color:#f3f4f6;font-size:14px;box-sizing:border-box;" placeholder="you@example.com">
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:12px;font-weight:600;color:#e5e7eb;margin-bottom:4px;">Message</label>
+        <textarea name="message" required rows="4" style="width:100%;padding:10px;border:1px solid #2a2d35;border-radius:8px;background:#1d2027;color:#f3f4f6;font-size:14px;box-sizing:border-box;resize:vertical;" placeholder="What's on your mind?"></textarea>
+      </div>
+      <button type="submit" style="width:100%;padding:12px;border:none;border-radius:10px;background:#10b981;color:#000;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:8px;">Send Feedback</button>
+      <button type="button" onclick="document.getElementById('feedbackModal').style.display='none'" style="width:100%;padding:10px;border:none;background:transparent;color:#9ca3af;font-size:12px;cursor:pointer;text-decoration:underline;">Cancel</button>
+    </form>
   </div>
 </div>
 <script>
@@ -2891,12 +2919,19 @@ function hideAboutModal() {
   var m = document.getElementById('aboutModal');
   if (m) m.style.display = 'none';
 }
+function showFeedbackModal() {
+  var m = document.getElementById('feedbackModal');
+  if (!m) return;
+  m.style.display = 'flex';
+}
 (function() {
   var m = document.getElementById('aboutModal');
   if (!m) return;
   m.addEventListener('click', function(e) { if (e.target === m) hideAboutModal(); });
   var ok = document.getElementById('aboutModalOk');
   if (ok) ok.addEventListener('click', hideAboutModal);
+  var f = document.getElementById('feedbackModal');
+  if (f) f.addEventListener('click', function(e) { if (e.target === f) f.style.display = 'none'; });
 })();
 </script>
 </body>
