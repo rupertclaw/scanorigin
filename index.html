@@ -1457,9 +1457,19 @@ async function discoverOptions() {
           ? '<span style="color:#f59e0b;">●</span>'
           : '<span style="color:#6b7280;">●</span>';
       const noteLine = b.note ? `<div class="result-detail" style="font-style:italic;color:#9ca3af;">${escapeHtml(b.note)}</div>` : '';
+      // Badge = who OWNS it (this is an ownership list). If the brand was born
+      // elsewhere than where the owner sits, say so — e.g. Sensodyne:
+      // "🇬🇧 UK-owned · US-born". Independent brands: origin is ownership.
+      const ownerCC = (b.parentCountry || b.originCountry || '').toUpperCase();
+      const ownerName = b.parentCountry === 'GB' ? 'UK-owned' : b.parentCountry === 'CA' ? 'Canadian-owned' : b.parentCompany ? 'Non-US-owned' : 'Independent';
+      const originCC = (b.originCountry || '').toUpperCase();
+      const bornLine = (b.parentCountry && originCC && originCC !== ownerCC)
+        ? ` · ${flagFor(originCC)} ${escapeHtml(b.originCountry)}-born`
+        : '';
+      const badgeClass = ownerCC === 'CA' ? 'yes' : 'maybe';
       return `<div class="result-card" style="margin-bottom:12px;">
-        <div class="canada-badge ${((b.originCountry||'').toUpperCase()==='CA') ? 'yes' : 'maybe'}">
-          <span class="flag">${flagFor(b.originCountry)}</span> ${escapeHtml(b.originCountry || 'Origin unknown')}
+        <div class="canada-badge ${badgeClass}">
+          <span class="flag">${flagFor(ownerCC)}</span> ${escapeHtml(ownerName)}${bornLine}
         </div>
         <div class="product-name">${escapeHtml(b.name)}</div>
         ${parentLine}
