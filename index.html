@@ -1507,6 +1507,18 @@ function renderBrandResult(searchTerm, chain, gemini) {
   const badgeClass = status.status === 'yes' ? 'yes' : status.status === 'no' ? 'no' : 'maybe';
   const chainHtml = renderOwnershipChain(chain);
 
+  // 2026-09-16 "Ragu → RAGU PACKAGING (India)" fix: when the AI verification
+  // layer is unavailable (quota, timeout), a GLEIF name match alone is NOT
+  // verification — GLEIF is a business registry full of unrelated companies
+  // that happen to share a name. Never present it as a confident answer.
+  let displayStatus = status;
+  let unverified = false;
+  if (!gemini && status.status !== 'yes' && status.status !== 'no') {
+    unverified = true;
+  } else if (gemini && gemini.confidence === 'low' && status.status === 'maybe') {
+    unverified = true;
+  }
+
   // Gemini note gives context (e.g. "Founded in Toronto 1897, acquired by Kraft Heinz")
   const noteHtml = gemini && gemini.note
     ? `<div class="result-detail" style="font-style:italic;color:#9ca3af;">${escapeHtml(gemini.note)}</div>`
@@ -1514,11 +1526,12 @@ function renderBrandResult(searchTerm, chain, gemini) {
 
   area.innerHTML = `<div class="result-card" id="brandResultCard">
     <div class="canada-badge ${badgeClass}" id="brandBadge">
-      <span class="flag">${status.flag}</span> ${escapeHtml(status.label)}
+      <span class="flag">${displayStatus.flag}</span> ${escapeHtml(displayStatus.label)}
     </div>
     <div class="product-name">${escapeHtml(chain[0].name)}</div>
     <div class="result-detail"><strong>Searched:</strong> "${escapeHtml(searchTerm)}"</div>
-    <div class="result-detail"><strong>Confidence:</strong> ${gemini?.confidence || status.confidence}</div>
+    <div class="result-detail"><strong>Confidence:</strong> ${unverified ? 'unverified' : (gemini?.confidence || status.confidence)}</div>
+    ${unverified ? `<div class="result-detail" style="color:#d97706;">⚠️ This match is from a business registry name search and may not be the brand you meant. AI verification is temporarily unavailable — try again shortly for a verified answer.</div>` : ''}
     ${noteHtml}
     ${chainHtml}
     <div id="aiAltSlot"></div>
