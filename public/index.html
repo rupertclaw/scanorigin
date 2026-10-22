@@ -2917,6 +2917,8 @@ window.addEventListener('appinstalled', () => {
   if (typeof gtag === 'function') {
     gtag('event', 'install_completed', { 'event_category': 'engagement' });
   }
+  // Anonymous install counter (no cookies, no identifiers)
+  try { fetch('https://truenorth-gemini-proxy.rupertclaw.workers.dev/track-install', { method: 'POST', keepalive: true }); } catch (e) {}
 });
 
 if (installBtn) {
