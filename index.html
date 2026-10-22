@@ -53,13 +53,15 @@
 }
 </script>
 
-<!-- Google Analytics -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-29827H2J1K"></script>
+<!-- Umami analytics (cookie-free). data-domains: only count the live site,
+     not staging or local copies. data-do-not-track: honour the browser's DNT. -->
+<script defer src="https://cloud.umami.is/script.js" data-website-id="1d9f761f-93b1-428f-b4f9-9db00a0d2c05" data-domains="scanorigin.ca,www.scanorigin.ca" data-do-not-track="true"></script>
 <script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'G-29827H2J1K');
+  // Fire-and-forget event helper: never send barcodes, brand names or anything
+  // a person typed — only that an action happened.
+  function trackEvent(name) {
+    try { if (window.umami && typeof window.umami.track === 'function') window.umami.track(name); } catch (e) {}
+  }
 </script>
 <link rel="manifest" href="manifest.json?v=16">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1393,6 +1395,7 @@ async function searchBrand() {
 
   const area = document.getElementById('brandResults');
   area.innerHTML = `<div style="text-align:center;padding:20px;color:#6b7280"><span class="spinner"></span> Searching for "${escapeHtml(term)}"...</div>`;
+  trackEvent('brand_search');
 
   try {
     const ownership = await resolveOwnership(term);
@@ -1421,6 +1424,7 @@ async function discoverOptions() {
   const input = document.getElementById('discoverSearch');
   const query = (input?.value || '').trim();
   if (!query) return;
+  trackEvent('discover');
 
   const area = document.getElementById('brandResults');
   area.innerHTML = `<div class="result-card" style="text-align:center;padding:24px;">
@@ -2712,13 +2716,8 @@ async function processBarcode(barcode) {
 
   showLoading(barcode);
 
-  // Track scan event in GA4
-  if (typeof gtag === 'function') {
-    gtag('event', 'scan', {
-      'event_category': 'engagement',
-      'event_label': barcode,
-    });
-  }
+  // Count the scan (not the barcode itself)
+  trackEvent('scan');
 
   try {
     const productData = await lookupProduct(barcode);
@@ -2926,9 +2925,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
 window.addEventListener('appinstalled', () => {
   if (installBtn) installBtn.classList.add('hidden');
   deferredPrompt = null;
-  if (typeof gtag === 'function') {
-    gtag('event', 'install_completed', { 'event_category': 'engagement' });
-  }
+  trackEvent('install_completed');
   // Anonymous install counter (no cookies, no identifiers)
   try { fetch('https://truenorth-gemini-proxy.rupertclaw.workers.dev/track-install', { method: 'POST', keepalive: true }); } catch (e) {}
 });
@@ -2941,13 +2938,9 @@ if (installBtn) {
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === 'accepted') {
         installBtn.classList.add('hidden');
-        if (typeof gtag === 'function') {
-          gtag('event', 'install_accepted', { 'event_category': 'engagement' });
-        }
+        trackEvent('install_accepted');
       } else {
-        if (typeof gtag === 'function') {
-          gtag('event', 'install_declined', { 'event_category': 'engagement' });
-        }
+        trackEvent('install_declined');
       }
       deferredPrompt = null;
     } else {
@@ -2996,9 +2989,11 @@ if ('serviceWorker' in navigator) {
     <div style="background:#1d2027;border:1px solid #2a2d35;border-radius:10px;padding:12px 14px;margin-bottom:10px;">
       <div style="font-size:12px;font-weight:700;color:#e5e7eb;margin-bottom:5px;">Your privacy</div>
       <div style="font-size:13px;color:#c9cdd4;line-height:1.6;">
-        <strong>Scans and searches stay in your browser.</strong> Lookups happen on your device and in your browser — we don't build a profile of what you scan, and there are no accounts or logins.<br><br>
-        <strong>No data selling. Ever.</strong> Nothing you scan or search is sold, shared, or used for advertising.<br><br>
-        <strong>One honest footnote:</strong> anonymous visit counts are measured through Google Analytics (no account, no personal data). That's the only signal that leaves your browser.
+        <strong>No accounts, no profile.</strong> There are no logins, and we don't keep a record of what you scan or search.<br><br>
+        <strong>What gets sent to answer you.</strong> To look something up, the barcode or brand name goes to the services that find the answer: our own lookup server, public product databases (like Open Food Facts), a public company register (GLEIF), Wikipedia, and an AI service (Google Gemini) that checks who owns a brand. We send only the barcode or brand name (plus the basic connection details any website sees), never your name or anything we could link back to you.<br><br>
+        <strong>No data selling. Ever.</strong> Nothing you scan or search is sold, shared for advertising, or used to target you.<br><br>
+        <strong>Visit counts.</strong> We use Umami, a privacy-friendly counter with no cookies and no tracking across websites. It counts visits, scans and app installs — not what you scanned. If your browser asks sites not to track you, we don't count you at all.<br><br>
+        <strong>Feedback form.</strong> If you send feedback, the name, email and message you type go to our form service (Formspree) so we can reply.
       </div>
     </div>
     <div style="background:#1d2027;border:1px solid #2a2d35;border-radius:10px;padding:12px 14px;margin-bottom:12px;">

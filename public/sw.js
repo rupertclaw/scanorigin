@@ -1,5 +1,5 @@
 // ScanOrigin Service Worker
-const CACHE_NAME = "scanorigin-v35";
+const CACHE_NAME = "scanorigin-v36";
 const ASSETS = [
   "./",
   "./index.html",
@@ -26,7 +26,12 @@ self.addEventListener("activate", (e) => {
 
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
-  
+
+  // Only handle this site's own files. Third-party calls (Umami, product
+  // databases, Wikipedia, GLEIF, the AI worker) go straight to the network —
+  // caching them here kept stale answers and grew the cache without limit.
+  if (url.origin !== self.location.origin) return;
+
   // Network-first for API calls and HTML documents (always get latest code)
   if (url.pathname.startsWith("/api/") || e.request.mode === "navigate" || url.pathname.endsWith(".html") || url.pathname === "/scanorigin/" || url.pathname === "/scanorigin") {
     e.respondWith(
