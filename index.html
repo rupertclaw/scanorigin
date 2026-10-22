@@ -443,8 +443,11 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:-a
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
 // ── GS1 Country Prefix Table ─────────────────────────────────
+// 000-139 is GS1 US territory, which Canadian companies also use for UPC-A
+// codes — most Canadian products scan in this range, so never call it "US".
 const GS1_PREFIXES = [
-  ['000','139','🇺🇸','United States'],
+  ['000','139','🇺🇸🇨🇦','United States or Canada'],
+  ['200','299','🏷️','In-store code (no country)'],
   ['300','379','🇫🇷','France'],
   ['380','380','🇧🇬','Bulgaria'],
   ['383','383','🇸🇮','Slovenia'],
@@ -471,7 +474,7 @@ const GS1_PREFIXES = [
   ['485','485','🇦🇲','Armenia'],
   ['486','486','🇬🇪','Georgia'],
   ['487','487','🇰🇿','Kazakhstan'],
-  ['488','489','🇹🇭','Thailand'],
+  ['488','488','🇹🇯','Tajikistan'],
   ['489','489','🇭🇰','Hong Kong'],
   ['490','499','🇯🇵','Japan'],
   ['500','509','🇬🇧','United Kingdom'],
@@ -529,7 +532,7 @@ const GS1_PREFIXES = [
   ['725','725','🇪🇷','Eritrea'],
   ['726','726','🇿🇦','South Africa'],
   ['727','727','🇳🇿','New Zealand'],
-  ['728','728','🇪🇱','Egypt'],
+  ['728','728','🇪🇬','Egypt'],
   ['729','729','🇮🇱','Israel'],
   ['730','739','🇸🇪','Sweden'],
   ['740','740','🇬🇹','Guatemala'],
@@ -548,7 +551,7 @@ const GS1_PREFIXES = [
   ['753','753','🇨🇺','Cuba'],
   ['754','755','🇨🇦','Canada'],
   ['756','756','🇨🇷','Costa Rica'],
-  ['757','757','🇨🇹','Guatemala'],
+  ['757','757','🇬🇹','Guatemala'],
   ['758','758','🇵🇦','Panama'],
   ['759','759','🇻🇪','Venezuela'],
   ['760','769','🇨🇭','Switzerland'],
@@ -559,7 +562,7 @@ const GS1_PREFIXES = [
   ['777','777','🇧🇴','Bolivia'],
   ['779','779','🇦🇷','Argentina'],
   ['780','780','🇨🇱','Chile'],
-  ['784','784','🇨🇬','Paraguay'],
+  ['784','784','🇵🇾','Paraguay'],
   ['786','786','🇪🇨','Ecuador'],
   ['789','790','🇧🇷','Brazil'],
   ['800','839','🇮🇹','Italy'],
@@ -584,17 +587,17 @@ const GS1_PREFIXES = [
   ['900','919','🇦🇹','Austria'],
   ['930','939','🇦🇺','Australia'],
   ['940','949','🇳🇿','New Zealand'],
-  ['950','950','🇬🇧','United Kingdom'],
+  ['950','950','🌐','GS1 Global Office (no country)'],
   ['955','955','🇲🇾','Malaysia'],
   ['958','958','🇲🇴','Macau'],
-  ['960','969','🇬🇧','Global Office (GS1)'],
-  ['977','977','🇬🇧','Serial Publications (ISSN)'],
-  ['978','979','🇬🇧','Books (ISBN)'],
-  ['980','980','🇬🇧','Refund receipts'],
-  ['981','984','🇬🇧','Common Currency Coupons'],
-  ['985','985','🇬🇧','UK coupons'],
-  ['986','989','🇬🇧','GS1 UK coupons'],
-  ['990','999','🇬🇧','GS1 coupons'],
+  ['960','969','🌐','GS1 Global Office (no country)'],
+  ['977','977','📰','Magazine / periodical (ISSN)'],
+  ['978','979','📚','Book (ISBN, no country)'],
+  ['980','980','🧾','Refund receipt'],
+  ['981','984','🎟️','Coupon'],
+  ['985','985','🎟️','Coupon'],
+  ['986','989','🎟️','Coupon'],
+  ['990','999','🎟️','Coupon'],
 ];
 
 function gs1Lookup(barcode) {
@@ -657,7 +660,7 @@ const BRAND_DB = {
   'canada dry': { company: 'Keurig Dr Pepper Inc.', country: 'US' },
   'a&w': { company: 'Keurig Dr Pepper Inc.', country: 'US' },
   'clearly canadian': { company: 'Clearly Canadian Beverage Corporation', country: 'CA' },
-  'okanagan spring': { company: 'Okanagan Spring Brewery', country: 'CA' },
+  'okanagan spring': { company: 'Sapporo Holdings Limited', country: 'JP' }, // via Sleeman, Sapporo-owned since 2006
 
   // Food - conglomerates
   'kraft': { company: 'The Kraft Heinz Company', country: 'US' },
@@ -695,8 +698,6 @@ const BRAND_DB = {
   'lean cuisine': { company: 'Nestlé S.A.', country: 'CH' },
   'stouffer\'s': { company: 'Nestlé S.A.', country: 'CH' },
   'stouffers': { company: 'Nestlé S.A.', country: 'CH' },
-  'haagen-dazs': { company: 'Nestlé S.A.', country: 'CH' },
-  'häagen-dazs': { company: 'Nestlé S.A.', country: 'CH' },
   'purina': { company: 'Nestlé S.A.', country: 'CH' },
   'friskies': { company: 'Nestlé S.A.', country: 'CH' },
   'unilever': { company: 'Unilever PLC', country: 'GB' },
@@ -733,7 +734,6 @@ const BRAND_DB = {
   'betty crocker': { company: 'General Mills, Inc.', country: 'US' },
   'pillsbury': { company: 'General Mills, Inc.', country: 'US' },
   'green giant': { company: 'General Mills, Inc.', country: 'US' },
-  'haagen dazs': { company: 'General Mills, Inc.', country: 'US' },
 
   // Condiments & sauces
   'french\'s': { company: 'McCormick & Company, Incorporated', country: 'US' },
@@ -755,9 +755,9 @@ const BRAND_DB = {
   'smucker\'s': { company: 'The J.M. Smucker Company', country: 'US' },
   'jif': { company: 'The J.M. Smucker Company', country: 'US' },
   'uncrustables': { company: 'The J.M. Smucker Company', country: 'US' },
-  'hostess': { company: 'Hostess Brands, Inc.', country: 'US' },
-  'dolly madison': { company: 'Hostess Brands, Inc.', country: 'US' },
-  'drake\'s': { company: 'Hostess Brands, Inc.', country: 'US' },
+  'hostess': { company: 'The J.M. Smucker Company', country: 'US' },
+  'dolly madison': { company: 'The J.M. Smucker Company', country: 'US' },
+  'drake\'s': { company: 'The J.M. Smucker Company', country: 'US' },
 
   // Household
   'procter & gamble': { company: 'The Procter & Gamble Company', country: 'US' },
@@ -782,7 +782,7 @@ const BRAND_DB = {
   'marie callender\'s': { company: 'Conagra Brands, Inc.', country: 'US' },
   'reddi-wip': { company: 'Conagra Brands, Inc.', country: 'US' },
   'peter pan': { company: 'Conagra Brands, Inc.', country: 'US' },
-  'duck tape': { company: 'Conagra Brands, Inc.', country: 'US' },
+  'duck tape': { company: 'Shurtape Technologies, LLC', country: 'US' },
 
   // Bimbo (Mexican, large Canadian presence)
   'bimbo': { company: 'Grupo Bimbo, S.A.B. de C.V.', country: 'MX' },
@@ -805,13 +805,13 @@ const BRAND_DB = {
   'no name': { company: 'Loblaw Companies Limited', country: 'CA' },
   'chapman\'s': { company: "David Chapman's Ice Cream Limited", country: 'CA' },
   'chamans': { company: "David Chapman's Ice Cream Limited", country: 'CA' },
-  'daiya': { company: 'Daiya Foods Inc.', country: 'CA' },
+  'daiya': { company: 'Otsuka Pharmaceutical Co., Ltd.', country: 'JP' }, // acquired 2017
   'nature\'s path': { company: "Nature's Path Foods Inc.", country: 'CA' },
   'natures path': { company: "Nature's Path Foods Inc.", country: 'CA' },
   'oasis': { company: 'A. Lassonde Inc.', country: 'CA' },
   'lassonde': { company: 'A. Lassonde Inc.', country: 'CA' },
-  'ed smith': { company: 'E.D. Smith Food Safe Inc.', country: 'CA' },
-  'e.d. smith': { company: 'E.D. Smith Food Safe Inc.', country: 'CA' },
+  'ed smith': { company: 'TreeHouse Foods, Inc.', country: 'US' },
+  'e.d. smith': { company: 'TreeHouse Foods, Inc.', country: 'US' },
   'highlander': { company: 'Highlander Spirits', country: 'CA' },
 
   // Retail
@@ -843,13 +843,13 @@ const BRAND_DB = {
   'johnson & johnson': { company: 'Johnson & Johnson', country: 'US' },
   'johnson and johnson': { company: 'Johnson & Johnson', country: 'US' },
   'j&j': { company: 'Johnson & Johnson', country: 'US' },
-  'band-aid': { company: 'Johnson & Johnson', country: 'US' },
-  'tylenol': { company: 'Johnson & Johnson', country: 'US' },
-  'motrin': { company: 'Johnson & Johnson', country: 'US' },
-  'aveeno': { company: 'Johnson & Johnson', country: 'US' },
-  'neutrogena': { company: 'Johnson & Johnson', country: 'US' },
-  'lubriderm': { company: 'Johnson & Johnson', country: 'US' },
-  'listerine': { company: 'Johnson & Johnson', country: 'US' },
+  'band-aid': { company: 'Kenvue Inc.', country: 'US' },
+  'tylenol': { company: 'Kenvue Inc.', country: 'US' },
+  'motrin': { company: 'Kenvue Inc.', country: 'US' },
+  'aveeno': { company: 'Kenvue Inc.', country: 'US' },
+  'neutrogena': { company: 'Kenvue Inc.', country: 'US' },
+  'lubriderm': { company: 'Kenvue Inc.', country: 'US' },
+  'listerine': { company: 'Kenvue Inc.', country: 'US' },
 
   // Reckitt
   'reckitt': { company: 'Reckitt Benckiser Group plc', country: 'GB' },
@@ -902,10 +902,14 @@ function lookupBrandDb(brandName) {
   if (BRAND_DB[normalized]) return BRAND_DB[normalized];
   if (BRAND_DB[normKey(brandName)]) return BRAND_DB[normKey(brandName)];
 
-  // Partial match: check if any key is contained in the brand name
+  // Partial match — whole words only, and only for distinctive multi-word
+  // keys ("kit kat", "president's choice"). Single-word keys like "mars",
+  // "simply", "always", "arnold" used to match inside other brands
+  // ("Marshmallow Fluff" → Mars, "Arnold Palmer" → Grupo Bimbo).
+  const padded = ` ${normalized} `;
   for (const [key, val] of Object.entries(BRAND_DB)) {
     const k = normKey(key);
-    if (normalized.includes(k) || k.includes(normalized)) {
+    if (k.includes(' ') && padded.includes(` ${k} `)) {
       return val;
     }
   }
@@ -1221,46 +1225,42 @@ function nameSimilarity(searchTerm, entityName) {
   return intersection / union;
 }
 
+// The verdict answers "who OWNS it" — the top of the chain — not where the
+// brand was born. 2026-10-22: Cadbury (UK-born, Mondelez/US-owned) showed
+// "Foreign-owned (UK)" and Sensodyne (US-born, Haleon/UK-owned) "US-owned"
+// because this read the brand's birthplace. Birthplace is now a suffix only.
 function assessCanadianStatus(chain) {
   if (!chain || chain.length === 0) {
     return { status: 'maybe', label: 'No ownership data found', confidence: 'none', flag: '❓' };
   }
 
-  const topCompany = chain[chain.length - 1];
-  const directCompany = chain[0];
+  const brand = chain[0];
+  const owner = chain[chain.length - 1];
+  const hasParent = chain.length > 1;
+  const sameCountry = (a, b) => a.isCanadian === b.isCanadian && a.isUS === b.isUS && a.country === b.country;
+  const bornNote = hasParent && brand.country && !sameCountry(brand, owner) ? ` · started in ${brand.country}` : '';
 
-  // If the brand itself is Canadian
-  if (directCompany.isCanadian) {
-    if (chain.length === 1) {
-      // Single entity, no parent chain traced — GLEIF registration country
-      // doesn't confirm origin. Could be a subsidiary with missing parent data.
-      return { status: 'yes', label: 'Canadian-owned', confidence: 'medium', flag: '🇨🇦' };
-    }
-    // Brand is Canadian but owned by foreign parent
-    if (topCompany.isUS) {
-      return { status: 'no', label: `Canadian brand, owned by US parent (${topCompany.name})`, confidence: 'medium', flag: '🇺🇸' };
-    }
-    if (!topCompany.isCanadian) {
-      const c = topCompany.country || 'foreign';
-      return { status: 'maybe', label: `Canadian brand, owned by ${c} parent`, confidence: 'medium', flag: '🌍' };
-    }
-    return { status: 'yes', label: 'Canadian-owned (fully Canadian chain)', confidence: 'high', flag: '🇨🇦' };
+  if (owner.isCanadian) {
+    const label = hasParent ? `Canadian-owned (${owner.name})${bornNote}` : 'Canadian-owned';
+    return { status: 'yes', label, confidence: chain.every(c => c.isCanadian) ? 'high' : 'medium', flag: '🇨🇦' };
   }
 
-  // Brand is not Canadian
-  if (directCompany.isUS) {
-    return { status: 'no', label: `US-owned (${directCompany.name})`, confidence: 'high', flag: '🇺🇸' };
+  if (owner.isUS) {
+    if (hasParent && brand.isCanadian) {
+      return { status: 'no', label: `Canadian brand, owned by US parent (${owner.name})`, confidence: 'medium', flag: '🇺🇸' };
+    }
+    return { status: 'no', label: `US-owned (${owner.name})${bornNote}`, confidence: 'high', flag: '🇺🇸' };
   }
 
-  // Check if any parent in the chain is Canadian
-  const canadianParent = chain.find(c => c.isCanadian);
-  if (canadianParent && chain.length > 1) {
-    return { status: 'maybe', label: `Foreign brand, ${canadianParent.name} (Canadian) in ownership chain`, confidence: 'low', flag: '🇨🇦' };
+  if (!owner.country) {
+    return { status: 'maybe', label: hasParent ? `Owned by ${owner.name} (country unknown)` : 'Ownership unclear', confidence: 'low', flag: '❓' };
   }
 
-  // Foreign, non-US
-  const country = directCompany.country || 'unknown';
-  return { status: 'maybe', label: `Foreign-owned (${country})`, confidence: 'medium', flag: '🌍' };
+  if (hasParent && brand.isCanadian) {
+    return { status: 'maybe', label: `Canadian brand, owned by ${owner.name} (${owner.country})`, confidence: 'medium', flag: '🌍' };
+  }
+  const who = hasParent ? `${owner.name}, ${owner.country}` : owner.country;
+  return { status: 'maybe', label: `Non-US-owned (${who})${bornNote}`, confidence: 'medium', flag: '🌍' };
 }
 
 // ── Render ownership chain in result card ──────────────────────
@@ -1312,6 +1312,80 @@ async function geminiOwnershipLookup(brandName) {
   } catch (e) { return null; }
 }
 
+// ── Shared ownership resolver (brand search AND barcode scans) ──
+// Returns { chain, gemini, source } where source is:
+//   'ai'       — Gemini answered; chain is brand → ultimate parent
+//   'brand-db' — curated BRAND_DB entry (+ GLEIF detail for the parent)
+//   'registry' — raw GLEIF name match only: NOT verification (Ragu → India)
+// Gemini wins whenever it answers with medium/high confidence. GLEIF is only
+// consulted as a fallback, so an unrelated same-name company ("Smarties OÜ")
+// can no longer leak into an AI-verified answer.
+function chainFromGemini(term, gemini) {
+  const chain = [{
+    lei: null,
+    name: gemini.brand || term,
+    country: gemini.originCountry ? countryCodeToName(gemini.originCountry) : null,
+    hq: null,
+    isCanadian: gemini.originCountry === 'CA',
+    isUS: gemini.originCountry === 'US',
+  }];
+  if (gemini.parentCompany && gemini.parentCompany.toLowerCase() !== chain[0].name.toLowerCase()) {
+    chain.push({
+      lei: null,
+      name: gemini.parentCompany,
+      country: gemini.parentCountry ? countryCodeToName(gemini.parentCountry) : null,
+      hq: null,
+      isCanadian: gemini.parentCountry === 'CA',
+      isUS: gemini.parentCountry === 'US',
+    });
+  }
+  return chain;
+}
+
+async function resolveOwnership(term) {
+  // Start the registry fallback alongside the AI call so a slow or failed AI
+  // answer doesn't add the GLEIF time on top; it's simply ignored otherwise.
+  const dbEntry = lookupBrandDb(term);
+  const fallback = (async () => {
+    let chain = dbEntry ? await buildChainFromBrandDb(term, dbEntry) : null;
+    if (chain && chain.length) return { chain, source: 'brand-db' };
+    chain = await buildChainFromGleifSearch(term);
+    return { chain: chain || [], source: 'registry' };
+  })();
+
+  const gemini = await geminiOwnershipLookup(term);
+  if (gemini && gemini.confidence !== 'low' && (gemini.originCountry || gemini.parentCompany)) {
+    return { chain: chainFromGemini(term, gemini), gemini, source: 'ai' };
+  }
+
+  const fb = await fallback;
+  if (!fb.chain.length && gemini) {
+    // Only a low-confidence AI answer exists — show it, flagged as unverified
+    return { chain: chainFromGemini(term, gemini), gemini, source: 'ai' };
+  }
+  return { chain: fb.chain, gemini, source: fb.source };
+}
+
+// Unverified = registry name match, or the AI answer we're showing said it
+// isn't sure. (A curated BRAND_DB hit counts as verified.)
+function isUnverified(ownership) {
+  if (!ownership) return false;
+  return ownership.source === 'registry' || (ownership.source === 'ai' && ownership.gemini.confidence === 'low');
+}
+
+function unverifiedWarning(ownership) {
+  return ownership.source === 'registry'
+    ? '⚠️ This match is from a business registry name search and may not be the brand you meant. AI verification is temporarily unavailable — try again shortly for a verified answer.'
+    : "⚠️ Our AI check wasn't confident about this brand. Treat it as a best guess and double-check before relying on it.";
+}
+
+// Confidence shown to users: the AI's own rating when the answer came from
+// the AI, otherwise the chain-based rating — and never above "unverified".
+function displayConfidence(ownership, status) {
+  if (isUnverified(ownership)) return 'unverified';
+  return ownership.source === 'ai' ? ownership.gemini.confidence : status.confidence;
+}
+
 async function searchBrand() {
   const input = document.getElementById('brandSearch');
   const term = input.value.trim();
@@ -1321,68 +1395,8 @@ async function searchBrand() {
   area.innerHTML = `<div style="text-align:center;padding:20px;color:#6b7280"><span class="spinner"></span> Searching for "${escapeHtml(term)}"...</div>`;
 
   try {
-    let chain = null;
-
-    // Step 1: Gemini ownership lookup — primary source. It knows acquisitions
-    // (Mars/Champion, Kraft Heinz/Magic) that GLEIF misses entirely.
-    const gemini = await geminiOwnershipLookup(term);
-
-    // Step 2: GLEIF structured registry — confirms or adds detail
-    const dbEntry = lookupBrandDb(term);
-    if (dbEntry) {
-      chain = await buildChainFromBrandDb(term, dbEntry);
-    }
-    if (!chain || chain.length === 0) {
-      chain = await buildChainFromGleifSearch(term);
-    }
-
-    // Step 3: Combine. If Gemini and GLEIF disagree on origin, Gemini wins
-    // (it uses ultimate-parent knowledge; GLEIF only knows registration country).
-    if (gemini && chain && chain.length > 0) {
-      const gleifCountry = chain[0].isCanadian ? 'CA' : chain[0].isUS ? 'US' : null;
-      if (gemini.originCountry && gemini.originCountry !== gleifCountry) {
-        // GLEIF registration country is wrong — replace with Gemini origin
-        chain[0] = {
-          ...chain[0],
-          country: countryCodeToName(gemini.originCountry),
-          isCanadian: gemini.originCountry === 'CA',
-          isUS: gemini.originCountry === 'US',
-        };
-      }
-      // If Gemini knows the ultimate parent and GLEIF didn't trace one, add it
-      if (gemini.parentCompany && chain.length === 1) {
-        if (!chain.some(c => c.name.toLowerCase() === gemini.parentCompany.toLowerCase())) {
-          chain.push({
-            lei: null,
-            name: gemini.parentCompany,
-            country: gemini.parentCountry ? countryCodeToName(gemini.parentCountry) : null,
-            hq: null,
-            isCanadian: gemini.parentCountry === 'CA',
-            isUS: gemini.parentCountry === 'US',
-          });
-        }
-      }
-    } else if (gemini && (!chain || chain.length === 0)) {
-      // GLEIF found nothing — build the chain from Gemini alone
-      chain = [{
-        lei: null,
-        name: gemini.brand || term,
-        country: gemini.originCountry ? countryCodeToName(gemini.originCountry) : null,
-        hq: null,
-        isCanadian: gemini.originCountry === 'CA',
-        isUS: gemini.originCountry === 'US',
-      }];
-      if (gemini.parentCompany) {
-        chain.push({
-          lei: null,
-          name: gemini.parentCompany,
-          country: gemini.parentCountry ? countryCodeToName(gemini.parentCountry) : null,
-          hq: null,
-          isCanadian: gemini.parentCountry === 'CA',
-          isUS: gemini.parentCountry === 'US',
-        });
-      }
-    }
+    const ownership = await resolveOwnership(term);
+    const chain = ownership.chain;
 
     if (!chain || chain.length === 0) {
       area.innerHTML = `<div class="result-card">
@@ -1393,7 +1407,7 @@ async function searchBrand() {
       return;
     }
 
-    renderBrandResult(term, chain, gemini);
+    renderBrandResult(term, ownership);
   } catch (err) {
     console.error('Brand search error:', err);
     showError(`Search failed: ${err.message}`);
@@ -1501,26 +1515,24 @@ async function discoverOptions() {
 }
 
 
-function renderBrandResult(searchTerm, chain, gemini) {
+function renderBrandResult(searchTerm, ownership) {
+  const { chain, gemini } = ownership;
   const area = document.getElementById('brandResults');
   const status = assessCanadianStatus(chain);
-  const badgeClass = status.status === 'yes' ? 'yes' : status.status === 'no' ? 'no' : 'maybe';
   const chainHtml = renderOwnershipChain(chain);
 
   // 2026-09-16 "Ragu → RAGU PACKAGING (India)" fix: when the AI verification
   // layer is unavailable (quota, timeout), a GLEIF name match alone is NOT
   // verification — GLEIF is a business registry full of unrelated companies
-  // that happen to share a name. Never present it as a confident answer.
-  let displayStatus = status;
-  let unverified = false;
-  if (!gemini && status.status !== 'yes' && status.status !== 'no') {
-    unverified = true;
-  } else if (gemini && gemini.confidence === 'low' && status.status === 'maybe') {
-    unverified = true;
-  }
+  // that happen to share a name. Never present it as a confident answer —
+  // including a confident-looking "US-owned" or "Canadian-owned" badge.
+  const displayStatus = status;
+  const unverified = isUnverified(ownership);
+  const badgeClass = unverified ? 'maybe' : status.status === 'yes' ? 'yes' : status.status === 'no' ? 'no' : 'maybe';
 
-  // Gemini note gives context (e.g. "Founded in Toronto 1897, acquired by Kraft Heinz")
-  const noteHtml = gemini && gemini.note
+  // Gemini note gives context (e.g. "Founded in Toronto 1897, acquired by Kraft Heinz").
+  // Only when the AI answer is what we're showing — otherwise it can contradict the chain.
+  const noteHtml = ownership.source === 'ai' && gemini.note
     ? `<div class="result-detail" style="font-style:italic;color:#9ca3af;">${escapeHtml(gemini.note)}</div>`
     : '';
 
@@ -1530,8 +1542,8 @@ function renderBrandResult(searchTerm, chain, gemini) {
     </div>
     <div class="product-name">${escapeHtml(chain[0].name)}</div>
     <div class="result-detail"><strong>Searched:</strong> "${escapeHtml(searchTerm)}"</div>
-    <div class="result-detail"><strong>Confidence:</strong> ${unverified ? 'unverified' : (gemini?.confidence || status.confidence)}</div>
-    ${unverified ? `<div class="result-detail" style="color:#d97706;">⚠️ This match is from a business registry name search and may not be the brand you meant. AI verification is temporarily unavailable — try again shortly for a verified answer.</div>` : ''}
+    <div class="result-detail"><strong>Confidence:</strong> ${escapeHtml(displayConfidence(ownership, status))}</div>
+    ${unverified ? `<div class="result-detail" style="color:#d97706;">${unverifiedWarning(ownership)}</div>` : ''}
     ${noteHtml}
     ${chainHtml}
     <div id="aiAltSlot"></div>
@@ -2016,7 +2028,8 @@ function escapeHtml(s) {
   return div.innerHTML;
 }
 
-function renderResult(barcode, productData, chain) {
+function renderResult(barcode, productData, ownership) {
+  const chain = ownership ? ownership.chain : null;
   const gs1 = gs1Lookup(barcode);
   const confidence = getConfidence(gs1.country, productData[0]);
 
@@ -2080,11 +2093,17 @@ function renderResult(barcode, productData, chain) {
   }
 
 
-  // ── CANADIAN STATUS badge (from GLEIF chain) ──
+  // ── CANADIAN STATUS badge (same resolver + unverified rule as brand search) ──
   if (chain && chain.length > 0) {
     const status = assessCanadianStatus(chain);
-    const badgeClass = status.status === 'yes' ? 'yes' : status.status === 'no' ? 'no' : 'maybe';
+    const unverified = isUnverified(ownership);
+    const badgeClass = unverified ? 'maybe' : status.status === 'yes' ? 'yes' : status.status === 'no' ? 'no' : 'maybe';
     html += `<div class="canada-badge ${badgeClass}"><span class="flag">${status.flag}</span> ${escapeHtml(status.label)}</div>`;
+    html += `<div class="result-detail"><strong>Ownership confidence:</strong> ${escapeHtml(displayConfidence(ownership, status))}</div>`;
+    if (unverified) html += `<div class="result-detail" style="color:#d97706;">${unverifiedWarning(ownership)}</div>`;
+    if (ownership.source === 'ai' && ownership.gemini.note) {
+      html += `<div class="result-detail" style="font-style:italic;color:#9ca3af;">${escapeHtml(ownership.gemini.note)}</div>`;
+    }
   }
 
   // ── OWNERSHIP section ──
@@ -2136,7 +2155,7 @@ function renderResult(barcode, productData, chain) {
   // ── GLEIF OWNERSHIP CHAIN ──
   if (chain && chain.length > 1) {
     html += '<div class="gleif-chain">';
-    html += '<h4>Ownership Chain (GLEIF)</h4>';
+    html += '<h4>Ownership Chain</h4>';
     chain.forEach((item, i) => {
       const flag = item.isCanadian ? '🇨🇦' : item.isUS ? '🇺🇸' : item.country ? '🌍' : '❓';
       const countryText = item.country ? ` — ${escapeHtml(item.country)}` : '';
@@ -2313,8 +2332,11 @@ function renderResult(barcode, productData, chain) {
 
   html += '</div>';
 
-  // History entry
-  scanHistory.unshift({ barcode, name: primary.name || 'Unknown', flag: gs1.flag, country: gs1.country });
+  // History entry (renderResult runs twice per scan — once more after
+  // enrichment — so don't record the same scan twice)
+  if (!scanHistory.length || scanHistory[0].barcode !== barcode) {
+    scanHistory.unshift({ barcode, name: primary.name || 'Unknown', flag: gs1.flag, country: gs1.country });
+  }
   if (scanHistory.length > 10) scanHistory.pop();
 
   // History section
@@ -2714,29 +2736,19 @@ async function processBarcode(barcode) {
         brandName = extractBrandFromProduct(off);
       }
       
-      // Trace ownership via GLEIF
-      let chain = null;
+      // Trace ownership — same AI-first resolver as the brand tab. Scans used
+      // to go straight to GLEIF with no AI check and no "unverified" warning,
+      // so the Ragu → RAGU PACKAGING (India) bug was still live here.
+      let ownership = null;
       if (brandName && brandName !== 'Unknown') {
-        const dbEntry = lookupBrandDb(brandName);
-        if (dbEntry) {
-          chain = await buildChainFromBrandDb(brandName, dbEntry);
-        }
-        if (!chain || chain.length === 0) {
-          chain = await buildChainFromGleifSearch(brandName);
-        }
+        ownership = await resolveOwnership(brandName);
       }
       // Fallback: OFF's brand_owner field (e.g. "Unilever" when brand is "Helmans")
-      if ((!chain || chain.length === 0) && off && off.brandOwner) {
-        const dbEntry = lookupBrandDb(off.brandOwner);
-        if (dbEntry) {
-          chain = await buildChainFromBrandDb(off.brandOwner, dbEntry);
-        }
-        if (!chain || chain.length === 0) {
-          chain = await buildChainFromGleifSearch(off.brandOwner);
-        }
+      if ((!ownership || ownership.chain.length === 0) && off && off.brandOwner) {
+        ownership = await resolveOwnership(off.brandOwner);
       }
-      
-      renderResult(barcode, productData, chain);
+
+      renderResult(barcode, productData, ownership);
       
       // After initial render, enrich with web search from Worker (no CORS issues)
       if (off && (off.name || off.brand)) {
@@ -2756,7 +2768,7 @@ async function processBarcode(barcode) {
               off.brandOrigin = enrichData.brandOrigin;
               off.brandCompany = enrichData.brandCompany;
             }
-            renderResult(barcode, productData, chain);  // re-render with enriched data
+            renderResult(barcode, productData, ownership);  // re-render with enriched data
           }
         } catch (e) { /* enrichment failed, keep initial render */ }
       }
